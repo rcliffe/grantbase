@@ -1,0 +1,102 @@
+// Prisma schema. Apply changes with `npm run db:migrate` (creates a migration).
+//
+// The User, Session, Account and Verification models follow the shape Better Auth
+// expects (https://www.better-auth.com/docs/concepts/database#core-schema).
+// Field names must stay as they are; table names are mapped to snake_case plurals.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+enum Role {
+  ADMINISTRATOR
+  EDITOR
+  VIEWER
+}
+
+model User {
+  id            String    @id @default(cuid()) @db.VarChar(36)
+  name          String    @db.VarChar(200)
+  /// Always stored normalised (trimmed, NFC, lower-case). See lib/email.ts.
+  email         String    @unique @db.VarChar(320)
+  emailVerified Boolean   @default(false)
+  image         String?   @db.Text
+  role          Role      @default(VIEWER)
+  /// Deactivated users cannot sign in and have all sessions revoked.
+  active        Boolean   @default(true)
+  createdAt     DateTime  @default(now()) @db.DateTime(3)
+  updatedAt     DateTime  @updatedAt @db.DateTime(3)
+  sessions      Session[]
+  accounts      Account[]
+
+  @@index([role, active])
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid()) @db.VarChar(36)
+  /// Opaque random token. The cookie carries this token plus an HMAC signature.
+  token     String   @unique @db.VarChar(255)
+  expiresAt DateTime @db.DateTime(3)
+  ipAddress String?  @db.VarChar(64)
+  userAgent String?  @db.Text
+  userId    String   @db.VarChar(36)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @db.DateTime(3)
+  updatedAt DateTime @updatedAt @db.DateTime(3)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+/// Credential store. For email/password sign-in, providerId = "credential" and
+/// `password` holds the Argon2id hash. Never select this model into UI code.
+model Account {
+  id                    String    @id @default(cuid()) @db.VarChar(36)
+  accountId             String    @db.VarChar(255)
+  providerId            String    @db.VarChar(64)
+  userId                String    @db.VarChar(36)
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?   @db.Text
+  refreshToken          String?   @db.Text
+  idToken               String?   @db.Text
+  accessTokenExpiresAt  DateTime? @db.DateTime(3)
+  refreshTokenExpiresAt DateTime? @db.DateTime(3)
+  scope                 String?   @db.Text
+  password              String?   @db.VarChar(255)
+  createdAt             DateTime  @default(now()) @db.DateTime(3)
+  updatedAt             DateTime  @updatedAt @db.DateTime(3)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Verification {
+  id         String   @id @default(cuid()) @db.VarChar(36)
+  identifier String   @db.VarChar(255)
+  value      String   @db.Text
+  expiresAt  DateTime @db.DateTime(3)
+  createdAt  DateTime @default(now()) @db.DateTime(3)
+  updatedAt  DateTime @updatedAt @db.DateTime(3)
+
+  @@index([identifier])
+  @@map("verifications")
+}
+
+/// Fixed-window counters for rate limiting, shared by all app instances.
+/// `key` is a SHA-256 hash, so no e-mail addresses or IPs are stored in clear.
+model RateLimit {
+  key     String   @id @db.Char(64)
+  count   Int
+  resetAt DateTime @db.DateTime(3)
+
+  @@index([resetAt])
+  @@map("rate_limits")
+}

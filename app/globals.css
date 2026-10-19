@@ -1,26 +1,96 @@
 @import "tailwindcss";
 
+/*
+ * Design tokens. Components use the semantic Tailwind colours below
+ * (bg-surface, text-muted, border-line, bg-accent ...), never raw palette values,
+ * so the theme can be changed here in one place.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --background: #f6f7f9;
+  --surface: #ffffff;
+  --surface-muted: #f1f3f6;
+  --foreground: #16181d;
+  --muted: #5b6270;
+  --line: #dde1e7;
+  --line-strong: #c4cad3;
+  --accent: #3b4fd8;
+  --accent-hover: #2f40b8;
+  --accent-foreground: #ffffff;
+  --accent-soft: #eaedfd;
+  --danger: #c02a2a;
+  --danger-hover: #a12020;
+  --danger-soft: #fdecec;
+  --success: #1c7a43;
+  --success-soft: #e6f5ec;
+  --warning: #8a5a00;
+  --warning-soft: #fdf3dc;
+  --ring: #3b4fd8;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #0f1115;
+    --surface: #171a20;
+    --surface-muted: #1e222a;
+    --foreground: #e8eaee;
+    --muted: #9aa2b1;
+    --line: #2a2f39;
+    --line-strong: #3a414e;
+    --accent: #7d8cff;
+    --accent-hover: #98a4ff;
+    --accent-foreground: #0f1115;
+    --accent-soft: #232846;
+    --danger: #f07070;
+    --danger-hover: #f59090;
+    --danger-soft: #3a1d1f;
+    --success: #5ccf8a;
+    --success-soft: #16301f;
+    --warning: #e8b54d;
+    --warning-soft: #33290f;
+    --ring: #98a4ff;
   }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-soft: var(--accent-soft);
+  --color-danger: var(--danger);
+  --color-danger-hover: var(--danger-hover);
+  --color-danger-soft: var(--danger-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-ring: var(--ring);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Consistent, clearly visible keyboard focus everywhere. */
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
