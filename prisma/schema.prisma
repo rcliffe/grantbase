@@ -20,19 +20,21 @@ enum Role {
 }
 
 model User {
-  id            String    @id @default(cuid()) @db.VarChar(36)
-  name          String    @db.VarChar(200)
+  id               String    @id @default(cuid()) @db.VarChar(36)
+  name             String    @db.VarChar(200)
   /// Always stored normalised (trimmed, NFC, lower-case). See lib/email.ts.
-  email         String    @unique @db.VarChar(320)
-  emailVerified Boolean   @default(false)
-  image         String?   @db.Text
-  role          Role      @default(VIEWER)
+  email            String    @unique @db.VarChar(320)
+  emailVerified    Boolean   @default(false)
+  image            String?   @db.Text
+  role             Role      @default(VIEWER)
   /// Deactivated users cannot sign in and have all sessions revoked.
-  active        Boolean   @default(true)
-  createdAt     DateTime  @default(now()) @db.DateTime(3)
-  updatedAt     DateTime  @updatedAt @db.DateTime(3)
-  sessions      Session[]
-  accounts      Account[]
+  active           Boolean   @default(true)
+  createdAt        DateTime  @default(now()) @db.DateTime(3)
+  updatedAt        DateTime  @updatedAt @db.DateTime(3)
+  sessions         Session[]
+  accounts         Account[]
+  charitiesCreated Charity[] @relation("CharityCreatedBy")
+  charitiesUpdated Charity[] @relation("CharityUpdatedBy")
 
   @@index([role, active])
   @@map("users")
@@ -99,4 +101,31 @@ model RateLimit {
 
   @@index([resetAt])
   @@map("rate_limits")
+}
+
+/// A charity organisation. Registration number is optional (exempt/excepted charities)
+/// but unique when present, stored upper-case without spaces.
+model Charity {
+  id                 String   @id @default(cuid()) @db.VarChar(36)
+  name               String   @db.VarChar(200)
+  registrationNumber String?  @unique @db.VarChar(20)
+  addressLine1       String?  @db.VarChar(200)
+  addressLine2       String?  @db.VarChar(200)
+  town               String?  @db.VarChar(100)
+  county             String?  @db.VarChar(100)
+  postcode           String?  @db.VarChar(20)
+  country            String?  @db.VarChar(100)
+  contactEmail       String?  @db.VarChar(320)
+  /// Always an absolute http(s) URL (validated before storage).
+  website            String?  @db.VarChar(500)
+  createdById        String?  @db.VarChar(36)
+  createdBy          User?    @relation("CharityCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedById        String?  @db.VarChar(36)
+  updatedBy          User?    @relation("CharityUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt          DateTime @default(now()) @db.DateTime(3)
+  updatedAt          DateTime @updatedAt @db.DateTime(3)
+
+  @@index([name])
+  @@index([town])
+  @@map("charities")
 }

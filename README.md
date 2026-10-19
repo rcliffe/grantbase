@@ -2,7 +2,7 @@
 
 A reusable foundation for internal web applications: Next.js App Router, TypeScript, Tailwind CSS, MariaDB via Prisma, and local email/password authentication with server-side sessions and role-based access control.
 
-There are no domain features yet. Build them on top of the auth, authorisation and data-access layers described below.
+The first domain feature is **Charities**: a register of charity organisations. Build further features on the same auth, authorisation and data-access layers described below.
 
 ## Stack
 
@@ -35,6 +35,7 @@ app/                      Routes (UI + Server Action entry points only)
   sign-in/                Sign-in page and action
   (app)/                  Signed-in area (shared shell: header, sidebar, sign-out)
     dashboard/  account/  forbidden/
+    charities/            Charity register (list/search, view, add, edit, delete)
     admin/users/          Administrator-only user management
 components/
   ui/                     Generic UI primitives (buttons, fields, alerts, cards…)
@@ -47,6 +48,7 @@ server/                   Server-only code (every module imports "server-only")
                           sign-in/out/change-password use-cases, rate limiting
   authz/guards.ts         AUTHORISATION: requireUser(), requireRole(), requireAdmin()
   users/service.ts        User data access + invariants (last admin, session revocation)
+  charities/service.ts    Charity data access (search, pagination, unique registration no.)
 scripts/                  CLI: create administrator, reset password
 prisma/                   Schema and migrations
 tests/                    Integration tests
@@ -76,6 +78,25 @@ Layouts and hidden navigation links are **not** a security boundary. The sidebar
 Roles form a hierarchy: `ADMINISTRATOR > EDITOR > VIEWER`. `hasRole(role, minimum)` in `lib/roles.ts` is the single comparison.
 
 With Cache Components enabled, anything that reads the session must render inside a `<Suspense>` boundary. **Give each new signed-in route its own `loading.tsx`**, as `dashboard/`, `account/` and the others have. The group-level `app/(app)/loading.tsx` is only a safety net: it doesn't cover navigation between sibling pages, and `next dev` will report such routes as blocking.
+
+## Charities
+
+Each charity has a name, an optional registration number, a postal address (two lines, town, county, postcode, country), a contact email and a website. It also records who created and last updated it, and when.
+
+| Action | Minimum role |
+| --- | --- |
+| View, search | Viewer |
+| Add, edit | Editor |
+| Delete | Administrator |
+
+These rules live in `CHARITY_PERMISSIONS` (`lib/charities.ts`) and are enforced in every page and Server Action.
+
+Data rules, applied on the server:
+
+- **Registration number:** optional, because exempt and excepted charities have none. It is stored upper-case without spaces, so `sc 012 345` is the same as `SC012345`, and it must be unique when present.
+- **Website:** must be an `http(s)` address, and `https://` is added when the scheme is missing. Other schemes (`javascript:`, `data:` …) are rejected, so stored links are safe to render.
+- **Email and postcode:** the contact email follows the app's email normalisation; postcodes are stored upper-case.
+- **Search:** case-insensitive across name, registration number, town and postcode, with 25 results per page. Input is matched literally, so `%` and `_` are not wildcards.
 
 ## Local setup
 

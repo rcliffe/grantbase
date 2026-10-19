@@ -27,6 +27,9 @@ export default async function DashboardPage() {
         <Card>
           <CardHeader title="Quick links" />
           <CardBody className="flex flex-wrap gap-2">
+            <LinkButton href="/charities" variant="secondary" size="sm">
+              Charities
+            </LinkButton>
             <LinkButton href="/account" variant="secondary" size="sm">
               Account settings
             </LinkButton>

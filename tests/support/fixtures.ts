@@ -11,6 +11,7 @@ export const PASSWORD = "correct horse battery staple";
 export async function resetDatabase(): Promise<void> {
   const prisma = db();
   // Children before parents; DELETE rather than TRUNCATE so foreign keys stay enforced.
+  await prisma.charity.deleteMany();
   await prisma.session.deleteMany();
   await prisma.account.deleteMany();
   await prisma.verification.deleteMany();
@@ -49,10 +50,10 @@ export async function signIn(email: string, password = PASSWORD, ip?: string): P
   return cookie;
 }
 
-/** Asserts that `promise` rejects with a Next.js redirect to `path`. */
+/** Asserts that `promise` rejects with a Next.js redirect whose URL matches the regex source `path`. */
 export async function expectRedirect(promise: Promise<unknown>, path: string): Promise<void> {
   await expect(promise).rejects.toMatchObject({
-    digest: expect.stringMatching(new RegExp(`^NEXT_REDIRECT;(replace|push);${path.replace(/[?]/g, "\\?")};`)),
+    digest: expect.stringMatching(new RegExp(`^NEXT_REDIRECT;(replace|push);${path};`)),
   });
 }
 
