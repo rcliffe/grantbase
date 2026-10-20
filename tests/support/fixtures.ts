@@ -12,6 +12,8 @@ export async function resetDatabase(): Promise<void> {
   const prisma = db();
   // Children before parents; DELETE rather than TRUNCATE so foreign keys stay enforced.
   await prisma.charity.deleteMany();
+  await prisma.grantCategory.deleteMany();
+  await prisma.grantStatus.deleteMany();
   await prisma.session.deleteMany();
   await prisma.account.deleteMany();
   await prisma.verification.deleteMany();

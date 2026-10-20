@@ -38,6 +38,7 @@ app/                      Routes (UI + Server Action entry points only)
     charities/            Charity register (list/search, view, add, edit, delete,
                           CSV export route and import page)
     admin/users/          Administrator-only user management
+    settings/             Grant categories and statuses (pages share settings/_grant-lookups/)
 components/
   ui/                     Generic UI primitives (buttons, fields, alerts, cards…)
   shell/                  App chrome: header, sidebar navigation, sign-out
@@ -51,6 +52,7 @@ server/                   Server-only code (every module imports "server-only")
   users/service.ts        User data access + invariants (last admin, session revocation)
   charities/service.ts    Charity data access (search, pagination, unique registration no.)
   charities/csv-import.ts Charity CSV import (validate whole file, then save in one transaction)
+  grant-lookups/service.ts Grant categories and statuses (ordering, unique names)
 scripts/                  CLI: create administrator, reset password, database backup/restore
 prisma/                   Schema and migrations
 tests/                    Integration tests
@@ -110,6 +112,17 @@ Data rules, applied on the server:
   - Every row goes through the same validation as the form. **Check file** reports what would be created or updated and lists problems by row. **Import** saves the whole file in one transaction, and saves nothing if any row has a problem.
   - Unchanged rows are not rewritten, so re-importing an unedited export changes nothing.
 - **Spreadsheet formulas:** exported cells starting with `=`, `+`, `-` or `@` get a leading `'`, so spreadsheet apps show them as text instead of running them. Import removes that apostrophe again.
+
+## Grant categories and statuses
+
+Administrators maintain two reference lists under **Settings** in the sidebar (`/settings/grant-categories`, `/settings/grant-statuses`): **Grant categories** (kinds of grant) and **Grant statuses** (the stages a grant moves through). They are ready for the grant records that will use them. Both lists work the same way:
+
+- Each entry has a **name** (unique within its list, ignoring case), an optional **description**, a **badge colour**, and an **active** flag.
+- New entries go to the end of the list. The ↑/↓ buttons reorder entries; that order is used wherever the list is shown.
+- **Inactive** entries stay on existing records but won't be offered for new ones. Prefer deactivating to deleting: once grants refer to an entry, deleting it is refused.
+- When the status list is empty, **Add standard statuses** fills it with Draft, Submitted, Under review, Awarded, Declined, Withdrawn and Closed, which you can then edit.
+
+Only administrators can view or change these lists (`LOOKUP_PERMISSIONS` in `lib/grant-lookups.ts`).
 
 ## Local setup
 
@@ -228,6 +241,7 @@ They cover:
 - the last-administrator rule, including concurrent demotion;
 - production cookie and environment rules;
 - charities: validation, role enforcement, duplicate registration numbers, search;
+- grant categories and statuses: administrator-only changes, unique names, ordering, deactivation and the standard status set;
 - CSV reading/writing and formula escaping, export permissions and filtering, and import: creating, matching by ID and registration number, partial columns, all-or-nothing errors, and export → import round trips.
 
 ## Production configuration

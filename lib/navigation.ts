@@ -21,6 +21,13 @@ export const NAV_SECTIONS: NavSection[] = [
     label: "Administration",
     items: [{ href: "/admin/users", label: "Users", minimumRole: "ADMINISTRATOR" }],
   },
+  {
+    label: "Settings",
+    items: [
+      { href: "/settings/grant-categories", label: "Grant categories", minimumRole: "ADMINISTRATOR" },
+      { href: "/settings/grant-statuses", label: "Grant statuses", minimumRole: "ADMINISTRATOR" },
+    ],
+  },
 ];
 
 /** Sections and items visible to `role`; empty sections are dropped. */

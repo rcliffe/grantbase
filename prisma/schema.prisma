@@ -132,3 +132,36 @@ model Charity {
   @@index([town])
   @@map("charities")
 }
+
+/// Reference lists maintained by administrators (Administration → Grant categories /
+/// Grant statuses). Both have the same shape so they share one service and UI.
+model GrantCategory {
+  id          String   @id @default(cuid()) @db.VarChar(36)
+  /// Unique, case-insensitively (utf8mb4_unicode_ci).
+  name        String   @unique @db.VarChar(100)
+  description String?  @db.VarChar(500)
+  /// Badge colour: one of LOOKUP_TONES in lib/grant-lookups.ts.
+  tone        String   @default("neutral") @db.VarChar(20)
+  /// Inactive entries stay on existing records but aren't offered for new ones.
+  active      Boolean  @default(true)
+  sortOrder   Int
+  createdAt   DateTime @default(now()) @db.DateTime(3)
+  updatedAt   DateTime @updatedAt @db.DateTime(3)
+
+  @@index([sortOrder])
+  @@map("grant_categories")
+}
+
+model GrantStatus {
+  id          String   @id @default(cuid()) @db.VarChar(36)
+  name        String   @unique @db.VarChar(100)
+  description String?  @db.VarChar(500)
+  tone        String   @default("neutral") @db.VarChar(20)
+  active      Boolean  @default(true)
+  sortOrder   Int
+  createdAt   DateTime @default(now()) @db.DateTime(3)
+  updatedAt   DateTime @updatedAt @db.DateTime(3)
+
+  @@index([sortOrder])
+  @@map("grant_statuses")
+}
