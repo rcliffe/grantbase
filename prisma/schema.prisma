@@ -35,6 +35,8 @@ model User {
   accounts         Account[]
   charitiesCreated Charity[] @relation("CharityCreatedBy")
   charitiesUpdated Charity[] @relation("CharityUpdatedBy")
+  grantsCreated    Grant[]   @relation("GrantCreatedBy")
+  grantsUpdated    Grant[]   @relation("GrantUpdatedBy")
 
   @@index([role, active])
   @@map("users")
@@ -127,6 +129,7 @@ model Charity {
   updatedBy          User?    @relation("CharityUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   createdAt          DateTime @default(now()) @db.DateTime(3)
   updatedAt          DateTime @updatedAt @db.DateTime(3)
+  grants             Grant[]
 
   @@index([name])
   @@index([town])
@@ -147,6 +150,7 @@ model GrantCategory {
   sortOrder   Int
   createdAt   DateTime @default(now()) @db.DateTime(3)
   updatedAt   DateTime @updatedAt @db.DateTime(3)
+  grants      Grant[]
 
   @@index([sortOrder])
   @@map("grant_categories")
@@ -161,7 +165,41 @@ model GrantStatus {
   sortOrder   Int
   createdAt   DateTime @default(now()) @db.DateTime(3)
   updatedAt   DateTime @updatedAt @db.DateTime(3)
+  grants      Grant[]
 
   @@index([sortOrder])
   @@map("grant_statuses")
+}
+
+/// A grant application submitted by a charity. Charities, categories and statuses
+/// can't be deleted while grants refer to them (onDelete: Restrict).
+model Grant {
+  id              String        @id @default(cuid()) @db.VarChar(36)
+  charityId       String        @db.VarChar(36)
+  charity         Charity       @relation(fields: [charityId], references: [id], onDelete: Restrict)
+  categoryId      String        @db.VarChar(36)
+  category        GrantCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  statusId        String        @db.VarChar(36)
+  status          GrantStatus   @relation(fields: [statusId], references: [id], onDelete: Restrict)
+  /// What the grant is for (plain text, line breaks kept).
+  purpose         String?       @db.VarChar(4000)
+  /// Calendar dates (no time of day).
+  dateSubmitted   DateTime      @db.Date
+  /// Pounds, to the penny.
+  amountRequested Decimal       @db.Decimal(12, 2)
+  amountAgreed    Decimal?      @db.Decimal(12, 2)
+  decisionDate    DateTime?     @db.Date
+  paymentDate     DateTime?     @db.Date
+  createdById     String?       @db.VarChar(36)
+  createdBy       User?         @relation("GrantCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedById     String?       @db.VarChar(36)
+  updatedBy       User?         @relation("GrantUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt       DateTime      @default(now()) @db.DateTime(3)
+  updatedAt       DateTime      @updatedAt @db.DateTime(3)
+
+  @@index([charityId, dateSubmitted])
+  @@index([statusId])
+  @@index([categoryId])
+  @@index([dateSubmitted])
+  @@map("grants")
 }

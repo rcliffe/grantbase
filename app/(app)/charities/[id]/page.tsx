@@ -6,10 +6,13 @@ import { LinkButton } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/misc";
 import { addressLines, CHARITY_PERMISSIONS } from "@/lib/charities";
+import { formatMoney, GRANT_PERMISSIONS } from "@/lib/grants";
 import { hasRole } from "@/lib/roles";
 import { userIdSchema } from "@/lib/validation";
 import { requireRole } from "@/server/authz/guards";
 import { getCharity } from "@/server/charities/service";
+import { listGrantsForCharity } from "@/server/grants/service";
+import { GrantTable } from "../../grants/grant-table";
 import { DeleteCharityForm } from "./delete-charity-form";
 
 export const metadata: Metadata = { title: "Charity" };
@@ -20,12 +23,16 @@ export default async function CharityPage({ params, searchParams }: PageProps<"/
   const user = await requireRole(CHARITY_PERMISSIONS.view);
   const { id } = await params;
   if (!userIdSchema.safeParse(id).success) notFound();
-  const [charity, query] = await Promise.all([getCharity(id), searchParams]);
+  const [charity, grants, query] = await Promise.all([getCharity(id), listGrantsForCharity(id), searchParams]);
   if (!charity) notFound();
 
   const canEdit = hasRole(user.role, CHARITY_PERMISSIONS.edit);
   const canDelete = hasRole(user.role, CHARITY_PERMISSIONS.delete);
   const address = addressLines(charity);
+  const canAddGrant = hasRole(user.role, GRANT_PERMISSIONS.edit);
+  const sum = (amounts: (string | null)[]) =>
+    // Sum in pence to avoid floating-point drift.
+    (amounts.reduce((total, a) => total + (a ? Math.round(Number(a) * 100) : 0), 0) / 100).toFixed(2);
 
   return (
     <>
@@ -120,9 +127,41 @@ export default async function CharityPage({ params, searchParams }: PageProps<"/
         </Card>
       </div>
 
+      <Card className="mt-6 overflow-hidden">
+        <CardHeader
+          title="Grants"
+          description={
+            grants.length > 0
+              ? `${grants.length} grant${grants.length === 1 ? "" : "s"} · ${formatMoney(sum(grants.map((g) => g.amountRequested)))} requested · ${formatMoney(sum(grants.map((g) => g.amountAgreed)))} agreed`
+              : undefined
+          }
+          actions={
+            canAddGrant && (
+              <LinkButton href={`/grants/new?charityId=${charity.id}`} variant="secondary" size="sm">
+                Add grant
+              </LinkButton>
+            )
+          }
+        />
+        {grants.length > 0 ? (
+          <GrantTable grants={grants} caption={`Grants submitted by ${charity.name}`} showCharity={false} />
+        ) : (
+          <CardBody>
+            <p className="text-sm text-muted">No grants recorded for this charity.</p>
+          </CardBody>
+        )}
+      </Card>
+
       {canDelete && (
         <Card className="mt-6">
-          <CardHeader title="Delete charity" description="Permanently removes this charity. This can't be undone." />
+          <CardHeader
+            title="Delete charity"
+            description={
+              grants.length > 0
+                ? "A charity with grants can't be deleted. Delete its grants first."
+                : "Permanently removes this charity. This can't be undone."
+            }
+          />
           <CardBody>
             <DeleteCharityForm id={charity.id} name={charity.name} />
           </CardBody>

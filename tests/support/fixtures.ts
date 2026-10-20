@@ -11,6 +11,7 @@ export const PASSWORD = "correct horse battery staple";
 export async function resetDatabase(): Promise<void> {
   const prisma = db();
   // Children before parents; DELETE rather than TRUNCATE so foreign keys stay enforced.
+  await prisma.grant.deleteMany();
   await prisma.charity.deleteMany();
   await prisma.grantCategory.deleteMany();
   await prisma.grantStatus.deleteMany();

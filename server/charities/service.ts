@@ -8,7 +8,7 @@ import { db } from "@/server/db/client";
  * CHARITY_PERMISSIONS); this module only enforces data rules.
  */
 
-export type CharityErrorCode = "REGISTRATION_NUMBER_TAKEN" | "NOT_FOUND";
+export type CharityErrorCode = "REGISTRATION_NUMBER_TAKEN" | "NOT_FOUND" | "HAS_GRANTS";
 
 export class CharityError extends Error {
   constructor(
@@ -127,6 +127,10 @@ function translate(error: unknown): never {
       throw new CharityError("REGISTRATION_NUMBER_TAKEN", "Another charity already has this registration number.");
     }
     if (error.code === "P2025") throw new CharityError("NOT_FOUND", "Charity not found.");
+    // Foreign key violation: grants still refer to the charity.
+    if (error.code === "P2003") {
+      throw new CharityError("HAS_GRANTS", "This charity has grants, so it can't be deleted. Delete its grants first.");
+    }
   }
   throw error;
 }

@@ -38,6 +38,7 @@ app/                      Routes (UI + Server Action entry points only)
     charities/            Charity register (list/search, view, add, edit, delete,
                           CSV export route and import page)
     admin/users/          Administrator-only user management
+    grants/               Grants (list with filters and totals, view, add, edit, delete)
     settings/             Grant categories and statuses (pages share settings/_grant-lookups/)
 components/
   ui/                     Generic UI primitives (buttons, fields, alerts, cards…)
@@ -53,6 +54,7 @@ server/                   Server-only code (every module imports "server-only")
   charities/service.ts    Charity data access (search, pagination, unique registration no.)
   charities/csv-import.ts Charity CSV import (validate whole file, then save in one transaction)
   grant-lookups/service.ts Grant categories and statuses (ordering, unique names)
+  grants/service.ts       Grant data access (filters, totals, reference checks)
 scripts/                  CLI: create administrator, reset password, database backup/restore
 prisma/                   Schema and migrations
 tests/                    Integration tests
@@ -113,13 +115,36 @@ Data rules, applied on the server:
   - Unchanged rows are not rewritten, so re-importing an unedited export changes nothing.
 - **Spreadsheet formulas:** exported cells starting with `=`, `+`, `-` or `@` get a leading `'`, so spreadsheet apps show them as text instead of running them. Import removes that apostrophe again.
 
+## Grants
+
+A grant records an application a charity has submitted: its **charity**, **category** and **status**, an optional **purpose** (up to 4,000 characters; lists show its first line), the **date submitted** and **amount requested**, and, once known, the **decision date**, **amount agreed** and **payment date**. It also records who created and last updated it, and when.
+
+| Action | Minimum role |
+| --- | --- |
+| View, search, filter | Viewer |
+| Add, edit | Editor |
+| Delete | Administrator |
+
+These rules live in `GRANT_PERMISSIONS` (`lib/grants.ts`) and are enforced in every page and Server Action.
+
+- **Grants** in the sidebar lists all grants, newest first, with search (charity name, registration number or purpose), status and category filters, and totals for the count, amount requested and amount agreed. Totals cover all matching grants, not just the current page.
+- Each charity's page lists its grants with totals, and has an **Add grant** button that pre-selects the charity.
+- **Amounts** are in pounds to the penny (`DECIMAL(12,2)`). Input such as `2500`, `£2,500.50` or `2 500` is accepted. Amounts are handled as exact decimal strings, never floating-point numbers.
+- **Dates** are calendar dates (`DATE`), with no time of day, so they never shift between time zones.
+- **Consistency rules:**
+  - The decision date can't be before the date submitted.
+  - An agreed amount needs a decision date. Record `0` for a declined application.
+  - A payment date needs an agreed amount above zero, and can't be before the decision date or the date submitted.
+- New grants can only use **active** categories and statuses. A grant keeps an entry that is deactivated later, and can still be edited.
+- Charities, categories and statuses that grants refer to **can't be deleted** (the database enforces this with foreign keys). Delete the grants first, or deactivate the category or status instead.
+
 ## Grant categories and statuses
 
-Administrators maintain two reference lists under **Settings** in the sidebar (`/settings/grant-categories`, `/settings/grant-statuses`): **Grant categories** (kinds of grant) and **Grant statuses** (the stages a grant moves through). They are ready for the grant records that will use them. Both lists work the same way:
+Administrators maintain two reference lists under **Settings** in the sidebar (`/settings/grant-categories`, `/settings/grant-statuses`): **Grant categories** (kinds of grant) and **Grant statuses** (the stages a grant moves through). Grants choose from them. Both lists work the same way:
 
 - Each entry has a **name** (unique within its list, ignoring case), an optional **description**, a **badge colour**, and an **active** flag.
 - New entries go to the end of the list. The ↑/↓ buttons reorder entries; that order is used wherever the list is shown.
-- **Inactive** entries stay on existing records but won't be offered for new ones. Prefer deactivating to deleting: once grants refer to an entry, deleting it is refused.
+- **Inactive** entries stay on existing grants but won't be offered for new ones. Prefer deactivating to deleting: an entry that grants use can't be deleted.
 - When the status list is empty, **Add standard statuses** fills it with Draft, Submitted, Under review, Awarded, Declined, Withdrawn and Closed, which you can then edit.
 
 Only administrators can view or change these lists (`LOOKUP_PERMISSIONS` in `lib/grant-lookups.ts`).
@@ -241,6 +266,7 @@ They cover:
 - the last-administrator rule, including concurrent demotion;
 - production cookie and environment rules;
 - charities: validation, role enforcement, duplicate registration numbers, search;
+- grants: amount and date parsing, consistency rules, role enforcement, active-only categories and statuses, filters, search and totals, and blocked deletes of charities, categories and statuses in use;
 - grant categories and statuses: administrator-only changes, unique names, ordering, deactivation and the standard status set;
 - CSV reading/writing and formula escaping, export permissions and filtering, and import: creating, matching by ID and registration number, partial columns, all-or-nothing errors, and export → import round trips.
 
