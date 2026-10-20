@@ -149,6 +149,14 @@ Administrators maintain two reference lists under **Settings** in the sidebar (`
 
 Only administrators can view or change these lists (`LOOKUP_PERMISSIONS` in `lib/grant-lookups.ts`).
 
+## Appearance
+
+Light and dark themes are built in. By default the app follows the device setting. The **System / Light / Dark** switch in the header (and on the sign-in page) overrides it for that browser.
+
+- Colours are design tokens in `app/globals.css`, each written as `light-dark(<light>, <dark>)`. Components only use the semantic Tailwind colours (`bg-surface`, `text-muted`, `bg-accent` …), so a new component supports both themes automatically. Don't use raw palette colours or `dark:` variants.
+- The choice is stored in `localStorage` (`lib/theme.ts`), not a cookie, so pages can still be prerendered. A small inline script in `app/layout.tsx` applies it before the first paint, so pages never flash the wrong theme.
+- `color-scheme` follows the theme, so native controls (date pickers, selects, scrollbars) match too.
+
 ## Local setup
 
 Prerequisites: Node.js 20.9+ (24 recommended), Docker with Compose.

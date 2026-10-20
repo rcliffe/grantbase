@@ -1,5 +1,6 @@
 import { Suspense, type ReactNode } from "react";
 import { Badge, Skeleton } from "@/components/ui/misc";
+import { ThemeSwitcher } from "@/components/ui/theme-switcher";
 import { navForRole } from "@/lib/navigation";
 import { ROLE_LABELS } from "@/lib/roles";
 import { getOptionalUser } from "@/server/authz/guards";
@@ -24,9 +25,12 @@ export function AppShell({ children }: { children: ReactNode }) {
       <header className="sticky top-0 z-40 border-b border-line bg-surface/95 backdrop-blur">
         <div className="flex h-14 items-center justify-between gap-4 px-4 lg:px-6">
           <Brand href="/dashboard" />
-          <Suspense fallback={<Skeleton className="h-8 w-48" />}>
-            <UserMenu />
-          </Suspense>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <ThemeSwitcher />
+            <Suspense fallback={<Skeleton className="h-8 w-48" />}>
+              <UserMenu />
+            </Suspense>
+          </div>
         </div>
       </header>
       <div className="flex flex-1 flex-col lg:flex-row">
@@ -52,7 +56,10 @@ async function UserMenu() {
         <p className="text-sm leading-tight font-medium">{user.name}</p>
         <p className="text-xs leading-tight text-muted">{user.email}</p>
       </div>
-      <Badge tone={user.role === "ADMINISTRATOR" ? "accent" : "neutral"}>{ROLE_LABELS[user.role]}</Badge>
+      {/* Hidden on phones to leave room for the theme switcher; the Account page shows the role too. */}
+      <span className="hidden sm:inline-flex">
+        <Badge tone={user.role === "ADMINISTRATOR" ? "accent" : "neutral"}>{ROLE_LABELS[user.role]}</Badge>
+      </span>
       <SignOutButton />
     </div>
   );

@@ -3,52 +3,41 @@
 /*
  * Design tokens. Components use the semantic Tailwind colours below
  * (bg-surface, text-muted, border-line, bg-accent ...), never raw palette values,
- * so the theme can be changed here in one place.
+ * so the theme can be changed here in one place. Each token is
+ * light-dark(<light>, <dark>): the browser picks one from `color-scheme`, which
+ * also themes native controls (date pickers, selects, scrollbars).
  */
 :root {
-  --background: #f6f7f9;
-  --surface: #ffffff;
-  --surface-muted: #f1f3f6;
-  --foreground: #16181d;
-  --muted: #5b6270;
-  --line: #dde1e7;
-  --line-strong: #c4cad3;
-  --accent: #3b4fd8;
-  --accent-hover: #2f40b8;
-  --accent-foreground: #ffffff;
-  --accent-soft: #eaedfd;
-  --danger: #c02a2a;
-  --danger-hover: #a12020;
-  --danger-soft: #fdecec;
-  --success: #1c7a43;
-  --success-soft: #e6f5ec;
-  --warning: #8a5a00;
-  --warning-soft: #fdf3dc;
-  --ring: #3b4fd8;
+  /* Follows the device setting unless the user picked a theme (see lib/theme.ts). */
+  color-scheme: light dark;
+  --background: light-dark(#f6f7f9, #0f1115);
+  --surface: light-dark(#ffffff, #171a20);
+  --surface-muted: light-dark(#f1f3f6, #1e222a);
+  --foreground: light-dark(#16181d, #e8eaee);
+  --muted: light-dark(#5b6270, #9aa2b1);
+  --line: light-dark(#dde1e7, #2a2f39);
+  --line-strong: light-dark(#c4cad3, #3a414e);
+  --accent: light-dark(#3b4fd8, #7d8cff);
+  --accent-hover: light-dark(#2f40b8, #98a4ff);
+  --accent-foreground: light-dark(#ffffff, #0f1115);
+  --accent-soft: light-dark(#eaedfd, #232846);
+  --danger: light-dark(#c02a2a, #f07070);
+  --danger-hover: light-dark(#a12020, #f59090);
+  --danger-foreground: light-dark(#ffffff, #0f1115);
+  --danger-soft: light-dark(#fdecec, #3a1d1f);
+  --success: light-dark(#1c7a43, #5ccf8a);
+  --success-soft: light-dark(#e6f5ec, #16301f);
+  --warning: light-dark(#8a5a00, #e8b54d);
+  --warning-soft: light-dark(#fdf3dc, #33290f);
+  --ring: light-dark(#3b4fd8, #98a4ff);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0f1115;
-    --surface: #171a20;
-    --surface-muted: #1e222a;
-    --foreground: #e8eaee;
-    --muted: #9aa2b1;
-    --line: #2a2f39;
-    --line-strong: #3a414e;
-    --accent: #7d8cff;
-    --accent-hover: #98a4ff;
-    --accent-foreground: #0f1115;
-    --accent-soft: #232846;
-    --danger: #f07070;
-    --danger-hover: #f59090;
-    --danger-soft: #3a1d1f;
-    --success: #5ccf8a;
-    --success-soft: #16301f;
-    --warning: #e8b54d;
-    --warning-soft: #33290f;
-    --ring: #98a4ff;
-  }
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
 }
 
 @theme inline {
@@ -65,6 +54,7 @@
   --color-accent-soft: var(--accent-soft);
   --color-danger: var(--danger);
   --color-danger-hover: var(--danger-hover);
+  --color-danger-foreground: var(--danger-foreground);
   --color-danger-soft: var(--danger-soft);
   --color-success: var(--success);
   --color-success-soft: var(--success-soft);
@@ -84,6 +74,13 @@ body {
 :focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
+}
+
+/* Set briefly while the theme changes (lib/theme.ts). */
+.theme-switching *,
+.theme-switching *::before,
+.theme-switching *::after {
+  transition: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

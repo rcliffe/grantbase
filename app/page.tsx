@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { APP_NAME, Brand } from "@/components/shell/brand";
 import { LinkButton } from "@/components/ui/button";
+import { ThemeSwitcher } from "@/components/ui/theme-switcher";
 import { getOptionalUser } from "@/server/authz/guards";
 
 export default function LandingPage() {
@@ -8,9 +9,12 @@ export default function LandingPage() {
     <div className="flex min-h-screen flex-col">
       <header className="flex h-14 items-center justify-between border-b border-line bg-surface px-4 lg:px-6">
         <Brand />
-        <Suspense fallback={<SignInLink />}>
-          <HeaderAction />
-        </Suspense>
+        <div className="flex items-center gap-3">
+          <ThemeSwitcher />
+          <Suspense fallback={<SignInLink />}>
+            <HeaderAction />
+          </Suspense>
+        </div>
       </header>
       <main id="main" className="flex flex-1 items-center px-4 py-16">
         <div className="mx-auto max-w-2xl text-center">

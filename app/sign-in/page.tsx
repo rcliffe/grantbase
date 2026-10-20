@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { Brand } from "@/components/shell/brand";
 import { Alert } from "@/components/ui/alert";
 import { Card, CardBody } from "@/components/ui/card";
+import { ThemeSwitcher } from "@/components/ui/theme-switcher";
 import { getOptionalUser } from "@/server/authz/guards";
 import { SignInForm } from "./sign-in-form";
 
@@ -32,6 +33,9 @@ export default function SignInPage({ searchParams }: PageProps<"/sign-in">) {
         <p className="mt-4 text-center text-xs text-muted">
           Forgotten your password? Ask an administrator to reset it.
         </p>
+        <div className="mt-6 flex justify-center">
+          <ThemeSwitcher />
+        </div>
       </div>
     </main>
   );
