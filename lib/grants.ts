@@ -7,7 +7,9 @@ import type { Role } from "./roles";
  */
 export const GRANT_PERMISSIONS = {
   view: "VIEWER",
+  export: "VIEWER",
   edit: "EDITOR",
+  import: "EDITOR",
   delete: "ADMINISTRATOR",
 } as const satisfies Record<string, Role>;
 

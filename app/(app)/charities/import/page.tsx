@@ -3,9 +3,11 @@ import Link from "next/link";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/misc";
 import { CHARITY_PERMISSIONS } from "@/lib/charities";
-import { CHARITY_CSV_COLUMNS, CHARITY_IMPORT_MAX_ROWS } from "@/lib/charity-csv";
+import { CsvImportForm } from "@/components/import/csv-import-form";
+import { CHARITY_CSV_COLUMNS } from "@/lib/charity-csv";
+import { IMPORT_MAX_ROWS } from "@/lib/csv-import";
 import { requireRole } from "@/server/authz/guards";
-import { ImportForm } from "./import-form";
+import { importCharitiesAction } from "../actions";
 
 export const metadata: Metadata = { title: "Import charities" };
 
@@ -20,13 +22,13 @@ export default async function ImportCharitiesPage() {
       </p>
       <PageHeader
         title="Import charities"
-        description={`Add or update up to ${CHARITY_IMPORT_MAX_ROWS.toLocaleString("en-GB")} charities from a CSV file.`}
+        description={`Add or update up to ${IMPORT_MAX_ROWS.toLocaleString("en-GB")} charities from a CSV file.`}
       />
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <Card>
           <CardBody className="py-6">
-            <ImportForm />
+            <CsvImportForm action={importCharitiesAction} noun={{ one: "charity", many: "charities" }} backHref="/charities" />
           </CardBody>
         </Card>
 

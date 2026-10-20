@@ -1,10 +1,5 @@
 import { CHARITY_FIELDS, type CharityInput } from "./charities";
-
-/** Largest CSV file accepted for import. Keep below serverActions.bodySizeLimit in next.config.ts. */
-export const CHARITY_IMPORT_MAX_BYTES = 2 * 1024 * 1024;
-export const CHARITY_IMPORT_MAX_ROWS = 5000;
-/** Row errors beyond this many are counted but not listed. */
-export const CHARITY_IMPORT_MAX_LISTED_ERRORS = 100;
+import { normaliseHeader } from "./csv-import";
 
 type CharityField = (typeof CHARITY_FIELDS)[number];
 
@@ -29,7 +24,6 @@ export const CHARITY_CSV_COLUMNS = [
 
 export type CharityCsvColumn = "id" | CharityField | "ignored";
 
-const normaliseHeader = (h: string) => h.trim().toLowerCase().replace(/[\s_-]+/g, "");
 
 const HEADER_LOOKUP = new Map<string, CharityCsvColumn>(
   CHARITY_CSV_COLUMNS.flatMap((c): [string, CharityCsvColumn][] => {

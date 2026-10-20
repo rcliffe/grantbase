@@ -36,6 +36,27 @@ export default async function GrantsPage({ searchParams }: PageProps<"/grants">)
   const filtered = Boolean(filters.query || filters.statusId || filters.categoryId);
   const canEdit = hasRole(user.role, GRANT_PERMISSIONS.edit);
   const newButton = canEdit ? <LinkButton href="/grants/new">Add grant</LinkButton> : null;
+  const exportParams = new URLSearchParams();
+  if (filters.query) exportParams.set("q", filters.query);
+  if (filters.statusId) exportParams.set("status", filters.statusId);
+  if (filters.categoryId) exportParams.set("category", filters.categoryId);
+  const exportHref = exportParams.size ? `/grants/export?${exportParams}` : "/grants/export";
+  const headerActions = (
+    <>
+      {totals.count > 0 && hasRole(user.role, GRANT_PERMISSIONS.export) && (
+        // A plain link: the route returns a file download, not a page.
+        <a href={exportHref} className={buttonClasses("secondary")}>
+          {filtered ? "Export results" : "Export CSV"}
+        </a>
+      )}
+      {hasRole(user.role, GRANT_PERMISSIONS.import) && (
+        <LinkButton href="/grants/import" variant="secondary">
+          Import CSV
+        </LinkButton>
+      )}
+      {newButton}
+    </>
+  );
 
   const pageHref = (p: number) => {
     const search = new URLSearchParams();
@@ -49,7 +70,7 @@ export default async function GrantsPage({ searchParams }: PageProps<"/grants">)
 
   return (
     <>
-      <PageHeader title="Grants" description="Grant applications submitted by charities." actions={newButton} />
+      <PageHeader title="Grants" description="Grant applications submitted by charities." actions={headerActions} />
 
       {first(params.deleted) === "1" && (
         <Alert tone="success" className="mb-4">

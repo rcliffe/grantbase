@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { importCharitiesAction } from "@/app/(app)/charities/actions";
 import { GET as exportRoute } from "@/app/(app)/charities/export/route";
-import { CHARITY_IMPORT_MAX_BYTES, CHARITY_IMPORT_MAX_LISTED_ERRORS } from "@/lib/charity-csv";
+import { IMPORT_MAX_BYTES, IMPORT_MAX_LISTED_ERRORS } from "@/lib/csv-import";
 import { CsvParseError, parseCsv, toCsv } from "@/lib/csv";
 import { db } from "@/server/db/client";
 import { expectRedirect, makeUser, resetDatabase, signIn } from "./support/fixtures";
@@ -213,7 +213,7 @@ describe("charity CSV import", () => {
     const fileErrors = async (content: string) => (await upload(content)).summary?.fileErrors;
 
     expect(await fileErrors("\n")).toEqual(["The file is empty."]);
-    expect(await fileErrors("Name")).toEqual(["The file has a header row but no charities."]);
+    expect(await fileErrors("Name")).toEqual(["The file has a header row but no data."]);
     expect(await fileErrors(csv("Name,Colour,Size", "A,,"))).toEqual(["Unrecognised columns: “Colour”, “Size”."]);
     // Headers match ignoring case, spaces, hyphens and underscores.
     expect(await fileErrors(csv("NAME,Post code,contact-email", "A,,"))).toEqual([]);
@@ -225,14 +225,14 @@ describe("charity CSV import", () => {
   it("lists at most a fixed number of row errors but counts them all", async () => {
     await signedInAs("EDITOR");
     const result = await upload(csv("Name,Year established", ...Array.from({ length: 150 }, (_, i) => `C${i},1`)));
-    expect(result.summary?.rowErrors).toHaveLength(CHARITY_IMPORT_MAX_LISTED_ERRORS);
+    expect(result.summary?.rowErrors).toHaveLength(IMPORT_MAX_LISTED_ERRORS);
     expect(result.summary?.rowErrorCount).toBe(150);
   });
 
   it("rejects missing, oversized and non-UTF-8 files", async () => {
     await signedInAs("EDITOR");
     expect((await upload("")).error).toMatch(/Choose a CSV file/);
-    expect((await upload("x".repeat(CHARITY_IMPORT_MAX_BYTES + 1))).error).toMatch(/larger than 2 MB/);
+    expect((await upload("x".repeat(IMPORT_MAX_BYTES + 1))).error).toMatch(/larger than 2 MB/);
     // "Café" in Windows-1252, as older Excel versions save "CSV".
     expect((await upload(new Uint8Array([0x4e, 0x61, 0x6d, 0x65, 0x0a, 0x43, 0x61, 0x66, 0xe9]))).error).toMatch(/UTF-8/);
     expect(await db().charity.count()).toBe(0);

@@ -1,15 +1,8 @@
 import "server-only";
 import { Prisma } from "@/generated/prisma/client";
 import { CHARITY_FIELDS, charitySchema, normaliseRegistrationNumber, type CharityInput } from "@/lib/charities";
-import {
-  CHARITY_CSV_COLUMNS,
-  CHARITY_IMPORT_MAX_LISTED_ERRORS,
-  CHARITY_IMPORT_MAX_ROWS,
-  charityColumnForHeader,
-  charityToValues,
-  type CharityCsvColumn,
-} from "@/lib/charity-csv";
-import { CsvParseError, parseCsv, unescapeFormula } from "@/lib/csv";
+import { CHARITY_CSV_COLUMNS, charityColumnForHeader, charityToValues, type CharityCsvColumn } from "@/lib/charity-csv";
+import { emptyImportSummary, importSummary, parseCsvWithHeader, type ImportRowError, type ImportSummary } from "@/lib/csv-import";
 import { db } from "@/server/db/client";
 
 /**
@@ -18,21 +11,6 @@ import { db } from "@/server/db/client";
  * Columns left out of the file keep their current values. The whole file is checked
  * first and then saved in one transaction, so it is imported completely or not at all.
  */
-
-export type ImportRowError = { row: number; message: string };
-
-export type ImportSummary = {
-  /** False when the file has errors (nothing was saved) or this was only a check. */
-  saved: boolean;
-  created: number;
-  updated: number;
-  unchanged: number;
-  /** Problems with the file as a whole (bad CSV, unknown columns …). */
-  fileErrors: string[];
-  /** The first CHARITY_IMPORT_MAX_LISTED_ERRORS row errors, in row order. */
-  rowErrors: ImportRowError[];
-  rowErrorCount: number;
-};
 
 const LABELS = Object.fromEntries(CHARITY_CSV_COLUMNS.flatMap((c) => (c.field ? [[c.field, c.header]] : []))) as Record<string, string>;
 
@@ -55,46 +33,13 @@ type Existing = Prisma.CharityGetPayload<{ select: typeof existingSelect }>;
 
 type PlannedRow = { row: number; targetId: string | null; data: CharityInput; changed: boolean };
 
-function emptySummary(fileErrors: string[] = []): ImportSummary {
-  return { saved: false, created: 0, updated: 0, unchanged: 0, fileErrors, rowErrors: [], rowErrorCount: 0 };
-}
-
 export async function importCharitiesCsv(text: string, actorId: string, options: { commit: boolean }): Promise<ImportSummary> {
-  let records: string[][];
-  try {
-    records = parseCsv(text);
-  } catch (error) {
-    if (error instanceof CsvParseError) return emptySummary([`The file isn't valid CSV. ${error.message}`]);
-    throw error;
-  }
-  if (records.length === 0) return emptySummary(["The file is empty."]);
-
-  // ---- Header ----
-  const [header, ...rows] = records;
-  const columns: CharityCsvColumn[] = [];
-  const fileErrors: string[] = [];
-  const unknown = header.filter((h) => h.trim() && !charityColumnForHeader(h));
-  if (unknown.length) fileErrors.push(`Unrecognised column${unknown.length > 1 ? "s" : ""}: ${unknown.map((h) => `“${h}”`).join(", ")}.`);
-  for (const h of header) {
-    const column = h.trim() ? charityColumnForHeader(h) : "ignored";
-    if (column && column !== "ignored" && columns.includes(column)) fileErrors.push(`The column “${h}” appears more than once.`);
-    columns.push(column ?? "ignored");
-  }
-  if (!columns.includes("name")) fileErrors.push("The file needs a “Name” column.");
-  if (rows.length === 0) fileErrors.push("The file has a header row but no charities.");
-  if (rows.length > CHARITY_IMPORT_MAX_ROWS) {
-    fileErrors.push(`The file has ${rows.length} rows; the most that can be imported at once is ${CHARITY_IMPORT_MAX_ROWS}.`);
-  }
-  if (fileErrors.length) return emptySummary(fileErrors);
-
-  const cellsOf = (cells: string[]) => {
-    const values: Partial<Record<CharityCsvColumn, string>> = {};
-    columns.forEach((column, i) => {
-      if (column !== "ignored") values[column] = unescapeFormula(cells[i] ?? "");
-    });
-    return values;
-  };
-  const parsedRows = rows.map((cells, i) => ({ row: i + 2, cells, values: cellsOf(cells) }));
+  const parsedCsv = parseCsvWithHeader<Exclude<CharityCsvColumn, "ignored">>(text, {
+    lookup: charityColumnForHeader,
+    required: [{ column: "name", header: "Name" }],
+  });
+  if (!parsedCsv.ok) return emptyImportSummary(parsedCsv.fileErrors);
+  const { columns, rows: parsedRows } = parsedCsv;
 
   // ---- Existing charities the file refers to, by ID and by registration number ----
   const ids = [...new Set(parsedRows.map((r) => r.values.id?.trim()).filter((v): v is string => Boolean(v)))];
@@ -112,10 +57,10 @@ export async function importCharitiesCsv(text: string, actorId: string, options:
   const rowErrors: ImportRowError[] = [];
   const planned: PlannedRow[] = [];
   const targetRows = new Map<string, number>();
-  for (const { row, cells, values } of parsedRows) {
+  for (const { row, values, tooManyCells, cellCount } of parsedRows) {
     const fail = (message: string) => rowErrors.push({ row, message });
-    if (cells.slice(columns.length).some((c) => c.trim())) {
-      fail(`Has ${cells.length} values but the header has ${columns.length} columns.`);
+    if (tooManyCells) {
+      fail(`Has ${cellCount} values but the header has ${columns.length} columns.`);
       continue;
     }
 
@@ -178,18 +123,12 @@ export async function importCharitiesCsv(text: string, actorId: string, options:
     return true;
   });
 
-  rowErrors.sort((a, b) => a.row - b.row);
   const creates = valid.filter((p) => !p.targetId);
   const updates = valid.filter((p) => p.targetId && p.changed);
-  const summary: ImportSummary = {
-    saved: false,
-    created: creates.length,
-    updated: updates.length,
-    unchanged: valid.length - creates.length - updates.length,
-    fileErrors: [],
-    rowErrors: rowErrors.slice(0, CHARITY_IMPORT_MAX_LISTED_ERRORS),
-    rowErrorCount: rowErrors.length,
-  };
+  const summary = importSummary(
+    { created: creates.length, updated: updates.length, unchanged: valid.length - creates.length - updates.length },
+    rowErrors,
+  );
   if (rowErrors.length || !options.commit) return summary;
 
   // ---- Save ----
@@ -208,7 +147,7 @@ export async function importCharitiesCsv(text: string, actorId: string, options:
   } catch (error) {
     // A concurrent edit can still collide on the unique index or delete a target row.
     if (error instanceof Prisma.PrismaClientKnownRequestError && (error.code === "P2002" || error.code === "P2025")) {
-      return emptySummary(["Charities changed while the file was being imported. Nothing was saved; check the file again."]);
+      return emptyImportSummary(["Charities changed while the file was being imported. Nothing was saved; check the file again."]);
     }
     throw error;
   }

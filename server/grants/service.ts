@@ -117,6 +117,11 @@ export async function listGrants(filters: GrantFilters & { page?: number } = {})
   };
 }
 
+/** Every grant matching the list filters, newest first, for CSV export. */
+export async function exportGrants(filters: GrantFilters = {}): Promise<GrantItem[]> {
+  return (await db().grant.findMany({ where: filterWhere(filters), select: grantSelect, orderBy })).map(toItem);
+}
+
 /** All grants for one charity, newest first. */
 export async function listGrantsForCharity(charityId: string): Promise<GrantItem[]> {
   return (await db().grant.findMany({ where: { charityId }, select: grantSelect, orderBy })).map(toItem);

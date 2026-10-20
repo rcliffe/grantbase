@@ -55,6 +55,7 @@ server/                   Server-only code (every module imports "server-only")
   charities/csv-import.ts Charity CSV import (validate whole file, then save in one transaction)
   grant-lookups/service.ts Grant categories and statuses (ordering, unique names)
   grants/service.ts       Grant data access (filters, totals, reference checks)
+  grants/csv-import.ts    Grant CSV import
 scripts/                  CLI: create administrator, reset password, database backup/restore
 prisma/                   Schema and migrations
 tests/                    Integration tests
@@ -121,8 +122,8 @@ A grant records an application a charity has submitted: its **charity**, **categ
 
 | Action | Minimum role |
 | --- | --- |
-| View, search, filter | Viewer |
-| Add, edit | Editor |
+| View, search, filter, export to CSV | Viewer |
+| Add, edit, import from CSV | Editor |
 | Delete | Administrator |
 
 These rules live in `GRANT_PERMISSIONS` (`lib/grants.ts`) and are enforced in every page and Server Action.
@@ -137,6 +138,18 @@ These rules live in `GRANT_PERMISSIONS` (`lib/grants.ts`) and are enforced in ev
   - A payment date needs an agreed amount above zero, and can't be before the decision date or the date submitted.
 - New grants can only use **active** categories and statuses. A grant keeps an entry that is deactivated later, and can still be edited.
 - Charities, categories and statuses that grants refer to **can't be deleted** (the database enforces this with foreign keys). Delete the grants first, or deactivate the category or status instead.
+
+### Grant CSV export and import
+
+These work like the [charity CSV export and import](#csv-export-and-import): same file format, size limits, **Check file** and all-or-nothing saving. Differences:
+
+- **Export** (**Export CSV** on the Grants page, or `/grants/export`) honours the list's search, status and category filters. Amounts are plain numbers (`2500.00`) and dates are `YYYY-MM-DD`.
+- **Import** (**Import CSV**, `/grants/import`): a row with an **ID** updates that grant; a row without one **adds** a grant (there's no other natural key, so re-importing a file without IDs adds duplicates).
+  - The **charity** must already exist. It is found by `Charity ID`, else `Charity registration number`, else `Charity` name; a name shared by several charities is rejected. When all three cells are blank, an updated grant keeps its charity.
+  - **Category** and **Status** are matched by name, ignoring case. New grants, and changes of category or status, must use active entries.
+  - Dates can be `2026-03-12` or `12/03/2026`, because Excel rewrites dates in UK format when it saves. Amounts can include `£` and commas.
+  - Columns left out keep their current values; a blank cell clears the value, which required fields don't allow.
+  - Every row passes the same validation as the grant form, including the date and amount consistency rules.
 
 ## Grant categories and statuses
 
@@ -276,6 +289,7 @@ They cover:
 - charities: validation, role enforcement, duplicate registration numbers, search;
 - grants: amount and date parsing, consistency rules, role enforcement, active-only categories and statuses, filters, search and totals, and blocked deletes of charities, categories and statuses in use;
 - grant categories and statuses: administrator-only changes, unique names, ordering, deactivation and the standard status set;
+- grant CSV export filters and import: matching charities by ID, registration number and name, categories and statuses by name, UK dates, blank cells, and export → import round trips;
 - CSV reading/writing and formula escaping, export permissions and filtering, and import: creating, matching by ID and registration number, partial columns, all-or-nothing errors, and export → import round trips.
 
 ## Production configuration
