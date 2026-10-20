@@ -36,6 +36,8 @@ const detailSelect = {
   id: true,
   name: true,
   registrationNumber: true,
+  yearEstablished: true,
+  description: true,
   addressLine1: true,
   addressLine2: true,
   town: true,
@@ -52,17 +54,13 @@ const detailSelect = {
 
 export type CharityDetail = Prisma.CharityGetPayload<{ select: typeof detailSelect }>;
 
-export async function listCharities(options: { query?: string; page?: number } = {}): Promise<{
-  items: CharityListItem[];
-  total: number;
-  page: number;
-  pageCount: number;
-}> {
-  const query = options.query?.trim().slice(0, 100) ?? "";
+/** Search across name, registration number, town and postcode. */
+function searchWhere(rawQuery: string | undefined): Prisma.CharityWhereInput {
+  const query = rawQuery?.trim().slice(0, 100) ?? "";
   // Prisma's `contains` passes LIKE wildcards through, so escape them to search literally.
   const escapeLike = (s: string) => s.replace(/[\\%_]/g, "\\$&");
   // Case-insensitive via the utf8mb4_unicode_ci collation.
-  const where: Prisma.CharityWhereInput = query
+  return query
     ? {
         OR: [
           { name: { contains: escapeLike(query) } },
@@ -72,7 +70,15 @@ export async function listCharities(options: { query?: string; page?: number } =
         ],
       }
     : {};
+}
 
+export async function listCharities(options: { query?: string; page?: number } = {}): Promise<{
+  items: CharityListItem[];
+  total: number;
+  page: number;
+  pageCount: number;
+}> {
+  const where = searchWhere(options.query);
   const total = await db().charity.count({ where });
   const pageCount = Math.max(1, Math.ceil(total / CHARITY_PAGE_SIZE));
   const page = Math.min(Math.max(1, Math.floor(options.page ?? 1)), pageCount);
@@ -84,6 +90,31 @@ export async function listCharities(options: { query?: string; page?: number } =
     take: CHARITY_PAGE_SIZE,
   });
   return { items, total, page, pageCount };
+}
+
+const exportSelect = {
+  id: true,
+  name: true,
+  registrationNumber: true,
+  yearEstablished: true,
+  description: true,
+  addressLine1: true,
+  addressLine2: true,
+  town: true,
+  county: true,
+  postcode: true,
+  country: true,
+  contactEmail: true,
+  website: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.CharitySelect;
+
+export type CharityExportRow = Prisma.CharityGetPayload<{ select: typeof exportSelect }>;
+
+/** Every charity matching the list search (all of them when `query` is blank), for CSV export. */
+export async function exportCharities(query?: string): Promise<CharityExportRow[]> {
+  return db().charity.findMany({ where: searchWhere(query), select: exportSelect, orderBy: [{ name: "asc" }, { id: "asc" }] });
 }
 
 export async function getCharity(id: string): Promise<CharityDetail | null> {

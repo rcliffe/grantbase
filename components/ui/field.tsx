@@ -69,6 +69,32 @@ export function InputField({ name, label, hint, error, className, ...props }: In
   );
 }
 
+type TextareaFieldProps = Omit<ComponentProps<"textarea">, "id" | "name"> & {
+  name: string;
+  label: string;
+  hint?: ReactNode;
+  error?: string;
+};
+
+export function TextareaField({ name, label, hint, error, className, rows = 4, ...props }: TextareaFieldProps) {
+  const id = `field-${name}`;
+  return (
+    <Field id={id} label={label} hint={hint} error={error}>
+      {(describedBy, invalid) => (
+        <textarea
+          id={id}
+          name={name}
+          rows={rows}
+          aria-describedby={describedBy}
+          aria-invalid={invalid}
+          className={cn(controlClasses, "py-2 leading-6", className)}
+          {...props}
+        />
+      )}
+    </Field>
+  );
+}
+
 type SelectFieldProps = Omit<ComponentProps<"select">, "id" | "name"> & {
   name: string;
   label: string;

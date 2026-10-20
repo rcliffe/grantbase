@@ -35,12 +35,13 @@ app/                      Routes (UI + Server Action entry points only)
   sign-in/                Sign-in page and action
   (app)/                  Signed-in area (shared shell: header, sidebar, sign-out)
     dashboard/  account/  forbidden/
-    charities/            Charity register (list/search, view, add, edit, delete)
+    charities/            Charity register (list/search, view, add, edit, delete,
+                          CSV export route and import page)
     admin/users/          Administrator-only user management
 components/
   ui/                     Generic UI primitives (buttons, fields, alerts, cards…)
   shell/                  App chrome: header, sidebar navigation, sign-out
-lib/                      Isomorphic, secret-free code: roles, validation, email policy
+lib/                      Isomorphic, secret-free code: roles, validation, email policy, CSV
 server/                   Server-only code (every module imports "server-only")
   env.ts                  Validated environment
   db/client.ts            Prisma client
@@ -49,7 +50,8 @@ server/                   Server-only code (every module imports "server-only")
   authz/guards.ts         AUTHORISATION: requireUser(), requireRole(), requireAdmin()
   users/service.ts        User data access + invariants (last admin, session revocation)
   charities/service.ts    Charity data access (search, pagination, unique registration no.)
-scripts/                  CLI: create administrator, reset password
+  charities/csv-import.ts Charity CSV import (validate whole file, then save in one transaction)
+scripts/                  CLI: create administrator, reset password, database backup/restore
 prisma/                   Schema and migrations
 tests/                    Integration tests
 ```
@@ -81,12 +83,12 @@ With Cache Components enabled, anything that reads the session must render insid
 
 ## Charities
 
-Each charity has a name, an optional registration number, a postal address (two lines, town, county, postcode, country), a contact email and a website. It also records who created and last updated it, and when.
+Each charity has a name, an optional registration number, the year it was established, a brief description, a postal address (two lines, town, county, postcode, country), a contact email and a website. It also records who created and last updated it, and when.
 
 | Action | Minimum role |
 | --- | --- |
-| View, search | Viewer |
-| Add, edit | Editor |
+| View, search, export to CSV | Viewer |
+| Add, edit, import from CSV | Editor |
 | Delete | Administrator |
 
 These rules live in `CHARITY_PERMISSIONS` (`lib/charities.ts`) and are enforced in every page and Server Action.
@@ -97,6 +99,17 @@ Data rules, applied on the server:
 - **Website:** must be an `http(s)` address, and `https://` is added when the scheme is missing. Other schemes (`javascript:`, `data:` …) are rejected, so stored links are safe to render.
 - **Email and postcode:** the contact email follows the app's email normalisation; postcodes are stored upper-case.
 - **Search:** case-insensitive across name, registration number, town and postcode, with 25 results per page. Input is matched literally, so `%` and `_` are not wildcards.
+- **Year established:** four digits, from 1000 to the current year. **Description:** up to 1,000 characters.
+
+### CSV export and import
+
+- **Export** (**Export CSV** on the Charities page, or `/charities/export`) downloads every charity, or only the current search results. The file is UTF-8 with a byte order mark, so Excel opens it correctly. It includes each charity's ID and its created/updated times.
+- **Import** (**Import CSV**, `/charities/import`) takes a UTF-8 CSV of up to 2 MB and 5,000 rows. The first row holds column names: the export headers (`Town or city`) or the field names (`town`), ignoring case and spacing. Only `Name` is required.
+  - A row with an **ID** updates that charity. A row without one updates the charity with the same **registration number**, or else adds a new charity.
+  - Columns missing from the file keep their current values. A column that is present but blank clears the value.
+  - Every row goes through the same validation as the form. **Check file** reports what would be created or updated and lists problems by row. **Import** saves the whole file in one transaction, and saves nothing if any row has a problem.
+  - Unchanged rows are not rewritten, so re-importing an unedited export changes nothing.
+- **Spreadsheet formulas:** exported cells starting with `=`, `+`, `-` or `@` get a leading `'`, so spreadsheet apps show them as text instead of running them. Import removes that apostrophe again.
 
 ## Local setup
 
@@ -135,8 +148,24 @@ On first start, the database container also creates `<db>_shadow` (for `prisma m
 | `npm run db:deploy` | Apply pending migrations (CI and production) |
 | `npm run db:generate` | Regenerate the Prisma client (runs automatically on `npm install`) |
 | `npm run db:studio` | Browse data |
+| `npm run db:backup [-- <file>]` | Back up the whole database to `backups/<db>-<timestamp>.sql.gz` (or `<file>`) |
+| `npm run db:restore -- <file>` | Replace the whole database with a backup |
 
 All tables use `utf8mb4` / `utf8mb4_unicode_ci`. The server default is set in `docker/mariadb/conf.d/charset.cnf`, and every migration also sets it per table. Every table records `createdAt`/`updatedAt`.
+
+### Backup and restore
+
+`db:backup` and `db:restore` work on the database in `DATABASE_URL`. They use `mariadb-dump` and `mariadb` from the host when installed, and otherwise run them inside the docker compose `db` container. The password reaches the tools in the `MYSQL_PWD` environment variable, never as a command-line argument.
+
+- **Backups** are complete gzipped SQL dumps: schema, data and the Prisma migrations table, taken as one consistent snapshot while the app keeps running. Files are created readable only by you (`0600`), and `backups/` is git-ignored. **They contain password hashes and session tokens**, so store them as carefully as the database itself, and keep copies off the machine.
+- **Restore** replaces *everything*, including users, passwords and sessions. It asks you to type the database name to confirm (`--yes` skips this, for scripts), then backs up the current database to `backups/…-before-restore.sql.gz` (`--no-safety-backup` skips this). It then drops every current table and loads the backup. If the backup came from an older version of the app, run `npm run db:deploy` afterwards.
+
+```bash
+npm run db:backup
+npm run db:restore -- backups/grantbase-20261020-101500.sql.gz
+```
+
+Restore isn't atomic: if it fails partway through, restore the safety backup. Stop the app first so nobody writes to the database during the restore.
 
 The `User`, `Session`, `Account` and `Verification` models follow Better Auth's expected field names. Keep those names when extending the models; table names are mapped to snake_case.
 
@@ -197,7 +226,9 @@ They cover:
 - administrator password reset and self-service password change, both revoking sessions;
 - server-side role enforcement in guards and Server Actions, with anonymous, viewer and editor callers;
 - the last-administrator rule, including concurrent demotion;
-- production cookie and environment rules.
+- production cookie and environment rules;
+- charities: validation, role enforcement, duplicate registration numbers, search;
+- CSV reading/writing and formula escaping, export permissions and filtering, and import: creating, matching by ID and registration number, partial columns, all-or-nothing errors, and export → import round trips.
 
 ## Production configuration
 
@@ -222,7 +253,7 @@ npm start            # behind an HTTPS-terminating reverse proxy
 
 - Terminate TLS in front of the app. Cookies are `Secure`, so the app only works over HTTPS.
 - If a proxy or CDN rewrites the `Host`, configure `serverActions.allowedOrigins` in `next.config.ts`, otherwise the Server Action CSRF check rejects requests.
-- Back up the MariaDB volume or database. Sessions and rate-limit rows are disposable; users and accounts are not.
+- Back up the database regularly, e.g. by scheduling `npm run db:backup` and copying the files off the server (see [Backup and restore](#backup-and-restore)). Sessions and rate-limit rows are disposable; users and accounts are not.
 
 ## Known limitations
 

@@ -26,6 +26,23 @@ export default async function CharitiesPage({ searchParams }: PageProps<"/charit
   });
   const canEdit = hasRole(user.role, CHARITY_PERMISSIONS.edit);
   const newButton = canEdit ? <LinkButton href="/charities/new">Add charity</LinkButton> : null;
+  const exportHref = query ? `/charities/export?${new URLSearchParams({ q: query })}` : "/charities/export";
+  const headerActions = (
+    <>
+      {total > 0 && hasRole(user.role, CHARITY_PERMISSIONS.export) && (
+        // A plain link: the route returns a file download, not a page.
+        <a href={exportHref} className={buttonClasses("secondary")}>
+          {query ? "Export results" : "Export CSV"}
+        </a>
+      )}
+      {hasRole(user.role, CHARITY_PERMISSIONS.import) && (
+        <LinkButton href="/charities/import" variant="secondary">
+          Import CSV
+        </LinkButton>
+      )}
+      {newButton}
+    </>
+  );
 
   const pageHref = (p: number) => {
     const search = new URLSearchParams();
@@ -37,7 +54,7 @@ export default async function CharitiesPage({ searchParams }: PageProps<"/charit
 
   return (
     <>
-      <PageHeader title="Charities" description="Organisations and their contact details." actions={newButton} />
+      <PageHeader title="Charities" description="Organisations and their contact details." actions={headerActions} />
 
       {first(params.deleted) === "1" && (
         <Alert tone="success" className="mb-4">

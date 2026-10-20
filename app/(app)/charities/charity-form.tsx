@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { Alert } from "@/components/ui/alert";
 import { LinkButton } from "@/components/ui/button";
-import { InputField } from "@/components/ui/field";
+import { InputField, TextareaField } from "@/components/ui/field";
 import { SubmitButton } from "@/components/ui/submit-button";
 import type { CharityInput } from "@/lib/charities";
 import { initialFormState, type FormState } from "@/lib/form-state";
@@ -46,6 +46,25 @@ export function CharityForm({
           hint="Optional. For example 1234567 or SC012345. Spaces are removed."
           error={errors.registrationNumber}
           className="max-w-xs"
+        />
+        <InputField
+          name="yearEstablished"
+          label="Year established"
+          inputMode="numeric"
+          maxLength={4}
+          placeholder="e.g. 1998"
+          defaultValue={value("yearEstablished")}
+          hint="Optional."
+          error={errors.yearEstablished}
+          className="max-w-32"
+        />
+        <TextareaField
+          name="description"
+          label="Description"
+          maxLength={1000}
+          defaultValue={value("description")}
+          hint="Optional. A brief summary of what the organisation does, up to 1,000 characters."
+          error={errors.description}
         />
       </fieldset>
 

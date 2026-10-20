@@ -8,7 +8,9 @@ import type { Role } from "./roles";
  */
 export const CHARITY_PERMISSIONS = {
   view: "VIEWER",
+  export: "VIEWER",
   edit: "EDITOR",
+  import: "EDITOR",
   delete: "ADMINISTRATOR",
 } as const satisfies Record<string, Role>;
 
@@ -79,6 +81,23 @@ const websiteSchema = z
     return normalised;
   });
 
+/** Earliest year accepted as a founding date; guards against typos like "202". */
+export const EARLIEST_YEAR_ESTABLISHED = 1000;
+
+const yearEstablishedSchema = z
+  .string()
+  .trim()
+  .transform((value, ctx) => {
+    if (value === "") return null;
+    const year = /^\d{4}$/.test(value) ? Number(value) : NaN;
+    const latest = new Date().getFullYear();
+    if (!(year >= EARLIEST_YEAR_ESTABLISHED && year <= latest)) {
+      ctx.addIssue({ code: "custom", message: `Enter a year between ${EARLIEST_YEAR_ESTABLISHED} and ${latest}, e.g. 1998.` });
+      return z.NEVER;
+    }
+    return year;
+  });
+
 const contactEmailSchema = z
   .string()
   .trim()
@@ -88,6 +107,8 @@ const contactEmailSchema = z
 export const charitySchema = z.object({
   name: z.string().trim().min(1, "Enter the charity's name.").max(200, "Name must be at most 200 characters."),
   registrationNumber: registrationNumberSchema,
+  yearEstablished: yearEstablishedSchema,
+  description: optionalText(1000, "Description"),
   addressLine1: optionalText(200, "Address line 1"),
   addressLine2: optionalText(200, "Address line 2"),
   town: optionalText(100, "Town or city"),
@@ -103,6 +124,8 @@ export type CharityInput = z.infer<typeof charitySchema>;
 export const CHARITY_FIELDS = [
   "name",
   "registrationNumber",
+  "yearEstablished",
+  "description",
   "addressLine1",
   "addressLine2",
   "town",

@@ -20,6 +20,9 @@
 # production
 /build
 
+# database backups (contain password hashes and session tokens)
+/backups/
+
 # misc
 .DS_Store
 *.pem

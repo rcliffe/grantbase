@@ -50,6 +50,24 @@ export default async function CharityPage({ params, searchParams }: PageProps<"/
         </Alert>
       )}
 
+      <Card className="mb-6">
+        <CardHeader title="About" />
+        <CardBody>
+          <dl className="space-y-3 text-sm">
+            <div>
+              <dt className="text-muted">Description</dt>
+              <dd className="mt-0.5 leading-6 whitespace-pre-line">
+                {charity.description ?? <span className="text-muted">Not recorded</span>}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-muted">Year established</dt>
+              <dd className="mt-0.5">{charity.yearEstablished ?? <span className="text-muted">Not recorded</span>}</dd>
+            </div>
+          </dl>
+        </CardBody>
+      </Card>
+
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader title="Address" />

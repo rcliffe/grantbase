@@ -16,6 +16,8 @@ const charityForm = (overrides: Record<string, string> = {}) =>
   formData({
     name: "Riverside Food Bank",
     registrationNumber: "1234567",
+    yearEstablished: "1998",
+    description: "Provides emergency food parcels.",
     addressLine1: "1 High Street",
     addressLine2: "",
     town: "Leeds",
@@ -37,6 +39,8 @@ describe("charity validation", () => {
   const base = {
     name: "A",
     registrationNumber: "",
+    yearEstablished: "",
+    description: "",
     addressLine1: "",
     addressLine2: "",
     town: "",
@@ -55,6 +59,8 @@ describe("charity validation", () => {
       postcode: " ls1 1aa ",
       contactEmail: " Info@Example.ORG ",
       website: "www.example.org",
+      yearEstablished: " 1998 ",
+      description: "  Runs a food bank.\n\nOpen weekdays.  ",
     });
     expect(parsed).toMatchObject({
       name: "Riverside",
@@ -62,9 +68,30 @@ describe("charity validation", () => {
       postcode: "LS1 1AA",
       contactEmail: "info@example.org",
       website: "https://www.example.org",
+      yearEstablished: 1998,
+      description: "Runs a food bank.\n\nOpen weekdays.",
       town: null,
       addressLine1: null,
     });
+  });
+
+  it("treats a blank year and description as not recorded", () => {
+    expect(charitySchema.parse(base)).toMatchObject({ yearEstablished: null, description: null });
+  });
+
+  it("only accepts a plausible four-digit year established", () => {
+    const yearError = (yearEstablished: string) => !charitySchema.safeParse({ ...base, yearEstablished }).success;
+    const nextYear = String(new Date().getFullYear() + 1);
+    for (const bad of ["202", "19985", "1998.5", "-1998", "nineteen", "0999", nextYear]) {
+      expect(yearError(bad), bad).toBe(true);
+    }
+    expect(yearError(String(new Date().getFullYear()))).toBe(false);
+    expect(yearError("1000")).toBe(false);
+  });
+
+  it("limits the description length", () => {
+    expect(charitySchema.safeParse({ ...base, description: "x".repeat(1000) }).success).toBe(true);
+    expect(charitySchema.safeParse({ ...base, description: "x".repeat(1001) }).success).toBe(false);
   });
 
   it("only accepts http(s) websites", () => {
@@ -119,6 +146,8 @@ describe("charity permissions (enforced in the actions)", () => {
       postcode: "LS1 1AA",
       contactEmail: "hello@riverside.example",
       website: "https://riverside.example",
+      yearEstablished: 1998,
+      description: "Provides emergency food parcels.",
       addressLine2: null,
       createdById: editor.id,
       updatedById: editor.id,
@@ -126,11 +155,18 @@ describe("charity permissions (enforced in the actions)", () => {
 
     const otherEditor = await signedInAs("EDITOR");
     await expectRedirect(
-      updateCharityAction({}, charityForm({ id: created.id, name: "Riverside Community Food Bank", website: "" })),
+      updateCharityAction({}, charityForm({ id: created.id, name: "Riverside Community Food Bank", website: "", yearEstablished: "", description: "" })),
       `/charities/${created.id}\\?saved=updated`,
     );
     const updated = await db().charity.findUniqueOrThrow({ where: { id: created.id } });
-    expect(updated).toMatchObject({ name: "Riverside Community Food Bank", website: null, updatedById: otherEditor.id, createdById: editor.id });
+    expect(updated).toMatchObject({
+      name: "Riverside Community Food Bank",
+      website: null,
+      yearEstablished: null,
+      description: null,
+      updatedById: otherEditor.id,
+      createdById: editor.id,
+    });
 
     await expectRedirect(deleteCharityAction({}, formData({ id: created.id })), "/forbidden");
     expect(await db().charity.count()).toBe(1);

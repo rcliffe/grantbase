@@ -109,6 +109,9 @@ model Charity {
   id                 String   @id @default(cuid()) @db.VarChar(36)
   name               String   @db.VarChar(200)
   registrationNumber String?  @unique @db.VarChar(20)
+  yearEstablished    Int?     @db.SmallInt
+  /// Brief plain-text description of the organisation.
+  description        String?  @db.VarChar(1000)
   addressLine1       String?  @db.VarChar(200)
   addressLine2       String?  @db.VarChar(200)
   town               String?  @db.VarChar(100)

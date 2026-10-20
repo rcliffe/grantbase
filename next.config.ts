@@ -19,6 +19,10 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   experimental: {
     agentFeedback: true,
+    serverActions: {
+      // Room for a CHARITY_IMPORT_MAX_BYTES (2 MB) CSV upload plus multipart overhead.
+      bodySizeLimit: "3mb",
+    },
   },
   cacheComponents: true,
   partialPrefetching: true,
