@@ -42,6 +42,7 @@ describe("grant lookup validation", () => {
       name: "Revenue",
       description: null,
       tone: "success",
+      stage: null,
       active: false, // unticked checkboxes aren't submitted
     });
     expect(lookupSchema.parse({ name: "A", description: "", tone: "neutral", active: "on" }).active).toBe(true);

@@ -15,6 +15,8 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: "/dashboard", label: "Dashboard", minimumRole: "VIEWER" },
       { href: "/charities", label: "Charities", minimumRole: "VIEWER" },
       { href: "/grants", label: "Grants", minimumRole: "VIEWER" },
+      { href: "/grants/decisions", label: "Decisions", minimumRole: "VIEWER" },
+      { href: "/grants/payments", label: "Payments", minimumRole: "VIEWER" },
       { href: "/account", label: "Account", minimumRole: "VIEWER" },
     ],
   },

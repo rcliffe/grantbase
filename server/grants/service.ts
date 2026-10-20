@@ -117,6 +117,14 @@ export async function listGrants(filters: GrantFilters & { page?: number } = {})
   };
 }
 
+/** Grants matching `where`, in `order` (newest first by default). For the process queues. */
+export async function findGrants(
+  where: Prisma.GrantWhereInput,
+  order: Prisma.GrantOrderByWithRelationInput[] = orderBy,
+): Promise<GrantItem[]> {
+  return (await db().grant.findMany({ where, select: grantSelect, orderBy: order })).map(toItem);
+}
+
 /** Every grant matching the list filters, newest first, for CSV export. */
 export async function exportGrants(filters: GrantFilters = {}): Promise<GrantItem[]> {
   return (await db().grant.findMany({ where: filterWhere(filters), select: grantSelect, orderBy })).map(toItem);

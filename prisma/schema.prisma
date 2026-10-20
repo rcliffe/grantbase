@@ -156,11 +156,21 @@ model GrantCategory {
   @@map("grant_categories")
 }
 
+/// Where a status sits in the grant process (lib/grant-process.ts). Statuses without
+/// a stage (Draft, Withdrawn …) aren't part of the decision/payment queues.
+enum GrantStage {
+  SUBMITTED
+  APPROVED
+  REJECTED
+  PAID
+}
+
 model GrantStatus {
-  id          String   @id @default(cuid()) @db.VarChar(36)
-  name        String   @unique @db.VarChar(100)
-  description String?  @db.VarChar(500)
-  tone        String   @default("neutral") @db.VarChar(20)
+  id          String      @id @default(cuid()) @db.VarChar(36)
+  name        String      @unique @db.VarChar(100)
+  description String?     @db.VarChar(500)
+  tone        String      @default("neutral") @db.VarChar(20)
+  stage       GrantStage?
   active      Boolean  @default(true)
   sortOrder   Int
   createdAt   DateTime @default(now()) @db.DateTime(3)

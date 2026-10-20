@@ -7,12 +7,17 @@ import { InputField, SelectField, TextareaField } from "@/components/ui/field";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { initialFormState, type FormState } from "@/lib/form-state";
 import { LOOKUP_CONFIG, LOOKUP_TONE_LABELS, LOOKUP_TONES, type LookupKind, type LookupTone } from "@/lib/grant-lookups";
+import { GRANT_STAGE_HELP, GRANT_STAGE_LABELS, GRANT_STAGES, type GrantStage } from "@/lib/grant-process";
 import { addStandardStatusesAction, createLookupAction, deleteLookupAction, moveLookupAction, updateLookupAction } from "./actions";
 
 type Action = (prev: FormState, formData: FormData) => Promise<FormState>;
-type Item = { id: string; name: string; description: string | null; tone: LookupTone; active: boolean };
+type Item = { id: string; name: string; description: string | null; tone: LookupTone; stage: GrantStage | null; active: boolean };
 
 const toneOptions = LOOKUP_TONES.map((tone) => ({ value: tone, label: LOOKUP_TONE_LABELS[tone] }));
+const stageOptions = [
+  { value: "", label: "None — not part of the process" },
+  ...GRANT_STAGES.map((stage) => ({ value: stage, label: GRANT_STAGE_LABELS[stage] })),
+];
 
 function Feedback({ state }: { state: FormState }) {
   if (state.error) return <Alert tone="error">{state.error}</Alert>;
@@ -45,6 +50,22 @@ function LookupFields({ state, item, kind }: { state: FormState; item?: Item; ki
         hint="Optional. Explains when to use this entry."
         error={errors.description}
       />
+      {kind === "status" && (
+        <SelectField
+          name="stage"
+          label="Process stage"
+          options={stageOptions}
+          defaultValue={v ? v.stage : (item?.stage ?? "")}
+          hint={
+            <>
+              Links this status to the Decisions and Payments pages.{" "}
+              {GRANT_STAGES.map((s) => `${GRANT_STAGE_LABELS[s]}: ${GRANT_STAGE_HELP[s].toLowerCase()}`).join(" ")}
+            </>
+          }
+          error={errors.stage}
+          className="sm:max-w-xs"
+        />
+      )}
       <div className="flex items-start gap-2">
         <input
           id="field-active"

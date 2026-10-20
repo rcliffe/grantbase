@@ -10,6 +10,8 @@ export const GRANT_PERMISSIONS = {
   export: "VIEWER",
   edit: "EDITOR",
   import: "EDITOR",
+  /** Approve, reject and mark as paid (the Decisions and Payments pages). */
+  process: "EDITOR",
   delete: "ADMINISTRATOR",
 } as const satisfies Record<string, Role>;
 

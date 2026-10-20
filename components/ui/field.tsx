@@ -46,13 +46,14 @@ export function Field({
 
 type InputFieldProps = Omit<ComponentProps<"input">, "id" | "name"> & {
   name: string;
+  /** Defaults to `field-<name>`. Set it when a page repeats the same form. */
+  id?: string;
   label: string;
   hint?: ReactNode;
   error?: string;
 };
 
-export function InputField({ name, label, hint, error, className, ...props }: InputFieldProps) {
-  const id = `field-${name}`;
+export function InputField({ name, id = `field-${name}`, label, hint, error, className, ...props }: InputFieldProps) {
   return (
     <Field id={id} label={label} hint={hint} error={error}>
       {(describedBy, invalid) => (

@@ -1,6 +1,7 @@
 import "server-only";
 import { Prisma } from "@/generated/prisma/client";
 import { isLookupTone, LOOKUP_CONFIG, STANDARD_GRANT_STATUSES, type LookupInput, type LookupKind, type LookupTone } from "@/lib/grant-lookups";
+import type { GrantStage } from "@/lib/grant-process";
 import { db } from "@/server/db/client";
 
 /**
@@ -31,28 +32,44 @@ const select = {
   updatedAt: true,
 } satisfies Prisma.GrantCategorySelect & Prisma.GrantStatusSelect;
 
-type Row = Prisma.GrantCategoryGetPayload<{ select: typeof select }>;
-export type LookupItem = Omit<Row, "tone"> & { tone: LookupTone };
+/** Statuses also have a process stage; categories don't. */
+const statusSelect = { ...select, stage: true } satisfies Prisma.GrantStatusSelect;
+const selectFor = (kind: LookupKind) => (kind === "status" ? statusSelect : select);
+
+type Row = Prisma.GrantStatusGetPayload<{ select: typeof statusSelect }>;
+export type LookupItem = Omit<Row, "tone" | "stage"> & { tone: LookupTone; stage: GrantStage | null };
 
 /**
- * The two models have identical columns, so one delegate type covers both. Prisma's
- * generated delegates aren't assignable to each other, hence the cast.
+ * The two models share their columns apart from the status stage, so the status
+ * delegate type covers both, provided `stage` is only ever selected or written for
+ * statuses (selectFor, dataFor). Prisma's generated delegates aren't assignable to
+ * each other, hence the cast.
  */
-type Delegate = Prisma.TransactionClient["grantCategory"];
+type Delegate = Prisma.TransactionClient["grantStatus"];
 function table(kind: LookupKind, client: Prisma.TransactionClient = db()): Delegate {
   return (kind === "category" ? client.grantCategory : client.grantStatus) as unknown as Delegate;
 }
 
-const toItem = (row: Row): LookupItem => ({ ...row, tone: isLookupTone(row.tone) ? row.tone : "neutral" });
+function dataFor(kind: LookupKind, input: LookupInput) {
+  if (kind === "status") return input;
+  const { stage: _stage, ...rest } = input; // eslint-disable-line @typescript-eslint/no-unused-vars
+  return rest;
+}
+
+const toItem = (row: Omit<Row, "stage"> & { stage?: GrantStage | null }): LookupItem => ({
+  ...row,
+  tone: isLookupTone(row.tone) ? row.tone : "neutral",
+  stage: row.stage ?? null,
+});
 const orderBy = [{ sortOrder: "asc" }, { name: "asc" }] satisfies Prisma.GrantCategoryOrderByWithRelationInput[];
 
 export async function listLookups(kind: LookupKind, options: { activeOnly?: boolean } = {}): Promise<LookupItem[]> {
-  const rows = await table(kind).findMany({ where: options.activeOnly ? { active: true } : {}, select, orderBy });
+  const rows = await table(kind).findMany({ where: options.activeOnly ? { active: true } : {}, select: selectFor(kind), orderBy });
   return rows.map(toItem);
 }
 
 export async function getLookup(kind: LookupKind, id: string): Promise<LookupItem | null> {
-  const row = await table(kind).findUnique({ where: { id }, select });
+  const row = await table(kind).findUnique({ where: { id }, select: selectFor(kind) });
   return row && toItem(row);
 }
 
@@ -74,7 +91,7 @@ export async function createLookup(kind: LookupKind, input: LookupInput): Promis
   try {
     return await db().$transaction(async (tx) => {
       const last = await table(kind, tx).aggregate({ _max: { sortOrder: true } });
-      return table(kind, tx).create({ data: { ...input, sortOrder: (last._max.sortOrder ?? 0) + 1 }, select: { id: true } });
+      return table(kind, tx).create({ data: { ...dataFor(kind, input), sortOrder: (last._max.sortOrder ?? 0) + 1 }, select: { id: true } });
     });
   } catch (error) {
     translate(kind, error);
@@ -83,7 +100,7 @@ export async function createLookup(kind: LookupKind, input: LookupInput): Promis
 
 export async function updateLookup(kind: LookupKind, id: string, input: LookupInput): Promise<void> {
   try {
-    await table(kind).update({ where: { id }, data: input, select: { id: true } });
+    await table(kind).update({ where: { id }, data: dataFor(kind, input), select: { id: true } });
   } catch (error) {
     translate(kind, error);
   }

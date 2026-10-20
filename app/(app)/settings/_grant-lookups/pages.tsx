@@ -4,6 +4,7 @@ import { Alert } from "@/components/ui/alert";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Badge, EmptyState, PageHeader } from "@/components/ui/misc";
 import { LOOKUP_CONFIG, LOOKUP_PERMISSIONS, STANDARD_GRANT_STATUSES, type LookupKind } from "@/lib/grant-lookups";
+import { GRANT_STAGE_LABELS, GRANT_STAGES } from "@/lib/grant-process";
 import { userIdSchema } from "@/lib/validation";
 import { requireRole } from "@/server/authz/guards";
 import { getLookup, listLookups } from "@/server/grant-lookups/service";
@@ -29,6 +30,8 @@ export async function LookupListPage({ kind, searchParams }: { kind: LookupKind;
         </Alert>
       )}
 
+      {kind === "status" && items.length > 0 && <MissingStagesNotice stages={items.filter((i) => i.active).map((i) => i.stage)} />}
+
       {items.length === 0 ? (
         <EmptyState
           title={`No ${config.plural} yet`}
@@ -51,6 +54,7 @@ export async function LookupListPage({ kind, searchParams }: { kind: LookupKind;
                   </th>
                   <th scope="col" className="px-5 py-3 font-semibold">Name</th>
                   <th scope="col" className="px-5 py-3 font-semibold">Description</th>
+                  {kind === "status" && <th scope="col" className="px-5 py-3 font-semibold">Stage</th>}
                   <th scope="col" className="px-5 py-3 font-semibold">Status</th>
                   <th scope="col" className="px-5 py-3 font-semibold">
                     <span className="sr-only">Actions</span>
@@ -67,6 +71,11 @@ export async function LookupListPage({ kind, searchParams }: { kind: LookupKind;
                       <Badge tone={item.tone}>{item.name}</Badge>
                     </td>
                     <td className="px-5 py-3 text-muted">{item.description ?? <span className="text-muted/60">—</span>}</td>
+                    {kind === "status" && (
+                      <td className="px-5 py-3 whitespace-nowrap text-muted">
+                        {item.stage ? GRANT_STAGE_LABELS[item.stage] : <span className="text-muted/60">—</span>}
+                      </td>
+                    )}
                     <td className="px-5 py-3">{item.active ? <Badge tone="success">Active</Badge> : <Badge>Inactive</Badge>}</td>
                     <td className="px-5 py-3 text-right">
                       <Link href={`${config.basePath}/${item.id}`} className="text-accent hover:underline">
@@ -123,5 +132,17 @@ export async function LookupEditPage({ kind, params }: { kind: LookupKind; param
         </CardBody>
       </Card>
     </>
+  );
+}
+
+/** Lists process stages with no active status, which leaves part of the process unusable. */
+function MissingStagesNotice({ stages }: { stages: (string | null)[] }) {
+  const missing = GRANT_STAGES.filter((s) => !stages.includes(s));
+  if (missing.length === 0) return null;
+  return (
+    <Alert tone="warning" className="mb-4" title="Part of the grant process isn't set up">
+      No active status has the stage {missing.map((s) => `“${GRANT_STAGE_LABELS[s]}”`).join(", ")}. Edit a status and choose its process stage
+      {missing.includes("PAID") && missing.length === 1 ? " (optional: without one, marking as paid records the date but keeps the status)" : ""}.
+    </Alert>
   );
 }

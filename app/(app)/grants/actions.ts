@@ -7,6 +7,7 @@ import { GRANT_FIELDS, GRANT_PERMISSIONS, grantSchema } from "@/lib/grants";
 import { fieldErrorsFrom, userIdSchema } from "@/lib/validation";
 import { requireRole } from "@/server/authz/guards";
 import { importGrantsCsv } from "@/server/grants/csv-import";
+import { decideGrant, markGrantPaid, ProcessError } from "@/server/grants/process";
 import { createGrant, deleteGrant, GrantError, updateGrant } from "@/server/grants/service";
 
 /* Every action checks the caller's role first: actions are public endpoints. */
@@ -74,4 +75,41 @@ export async function importGrantsAction(_prev: ImportState, formData: FormData)
   if (!upload.ok) return { error: upload.error };
   const summary = await importGrantsCsv(upload.text, user.id, { commit: upload.mode === "import" });
   return { mode: upload.mode, fileName: upload.fileName, summary };
+}
+
+function processErrorState(error: unknown, values: Record<string, string>): FormState {
+  if (error instanceof ProcessError) {
+    return error.field ? { fieldErrors: { [error.field]: error.message }, values } : { error: error.message, values };
+  }
+  throw error;
+}
+
+/** Approve or reject (the submit button's `decision` value) a grant awaiting a decision. */
+export async function decideGrantAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireRole(GRANT_PERMISSIONS.process);
+  const id = userIdSchema.safeParse(formData.get("id"));
+  const decision = formData.get("decision");
+  if (!id.success || (decision !== "approve" && decision !== "reject")) return { error: "Invalid request." };
+  const values = { amountAgreed: String(formData.get("amountAgreed") ?? ""), decisionDate: String(formData.get("decisionDate") ?? "") };
+
+  try {
+    await decideGrant(id.data, decision, values, user.id);
+  } catch (error) {
+    return processErrorState(error, values);
+  }
+  redirect(`/grants/decisions?${decision === "approve" ? "approved" : "rejected"}=${id.data}`);
+}
+
+export async function markGrantPaidAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireRole(GRANT_PERMISSIONS.process);
+  const id = userIdSchema.safeParse(formData.get("id"));
+  if (!id.success) return { error: "Invalid request." };
+  const values = { paymentDate: String(formData.get("paymentDate") ?? "") };
+
+  try {
+    await markGrantPaid(id.data, values, user.id);
+  } catch (error) {
+    return processErrorState(error, values);
+  }
+  redirect(`/grants/payments?paid=${id.data}`);
 }

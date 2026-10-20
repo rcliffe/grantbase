@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Card, CardBody } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/misc";
+import { todayInUk } from "@/lib/grant-process";
 import { GRANT_PERMISSIONS } from "@/lib/grants";
 import { requireRole } from "@/server/authz/guards";
 import { getGrantFormOptions } from "@/server/grants/service";
@@ -36,7 +37,7 @@ export default async function NewGrantPage({ searchParams }: PageProps<"/grants/
             <GrantForm
               action={createGrantAction}
               options={options}
-              defaults={{ charityId: charity?.id ?? "", dateSubmitted: new Date().toISOString().slice(0, 10) }}
+              defaults={{ charityId: charity?.id ?? "", dateSubmitted: todayInUk() }}
               submitLabel="Add grant"
               cancelHref={backHref}
             />

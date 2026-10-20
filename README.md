@@ -56,6 +56,7 @@ server/                   Server-only code (every module imports "server-only")
   grant-lookups/service.ts Grant categories and statuses (ordering, unique names)
   grants/service.ts       Grant data access (filters, totals, reference checks)
   grants/csv-import.ts    Grant CSV import
+  grants/process.ts       Decision and payment queues, approve/reject/mark as paid
 scripts/                  CLI: create administrator, reset password, database backup/restore
 prisma/                   Schema and migrations
 tests/                    Integration tests
@@ -138,6 +139,28 @@ These rules live in `GRANT_PERMISSIONS` (`lib/grants.ts`) and are enforced in ev
   - A payment date needs an agreed amount above zero, and can't be before the decision date or the date submitted.
 - New grants can only use **active** categories and statuses. A grant keeps an entry that is deactivated later, and can still be edited.
 - Charities, categories and statuses that grants refer to **can't be deleted** (the database enforces this with foreign keys). Delete the grants first, or deactivate the category or status instead.
+
+### Grant process: decisions and payments
+
+Two pages in the sidebar move grants through the process:
+
+- **Decisions** lists grants awaiting a decision, oldest submission first. Each has **Approve** (with the amount agreed, pre-filled with the amount requested, and the decision date) and **Reject**, which records £0 agreed and asks for confirmation.
+- **Payments** lists approved grants that haven't been paid, oldest decision first, with totals. **Mark as paid** records the payment date.
+
+Which statuses take part is set per status under **Settings → Grant statuses** (*Process stage*):
+
+| Stage | Meaning |
+| --- | --- |
+| Awaiting decision | Listed under Decisions. Several statuses can share it, e.g. Submitted and Under review. |
+| Approved | Approving moves the grant to the first active status with this stage. Listed under Payments until paid. |
+| Rejected | Rejecting moves the grant here. |
+| Paid | Marking as paid moves the grant here. Optional: without one, the payment date is recorded and the status kept. |
+
+The statuses page warns when a stage has no active status. The standard status set includes all four stages, and the migration assigns stages to existing statuses with the usual names (Submitted, Under review, Awarded, Approved, Declined, Rejected, Paid).
+
+- Each step re-checks the whole grant with the grant form's rules (for example, the decision date can't be before the date submitted). It also only applies if the grant is still at the stage the user saw, so two people can't decide or pay the same grant twice.
+- Editors and above can approve, reject and mark as paid (`GRANT_PERMISSIONS.process`). Viewers can see both pages, without the buttons.
+- Default dates are today in the UK (Europe/London), not the server's time zone.
 
 ### Grant CSV export and import
 
@@ -289,6 +312,7 @@ They cover:
 - charities: validation, role enforcement, duplicate registration numbers, search;
 - grants: amount and date parsing, consistency rules, role enforcement, active-only categories and statuses, filters, search and totals, and blocked deletes of charities, categories and statuses in use;
 - grant categories and statuses: administrator-only changes, unique names, ordering, deactivation and the standard status set;
+- grant process: queues, approving, rejecting and paying, form rules, missing stages, double and simultaneous decisions, UK dates;
 - grant CSV export filters and import: matching charities by ID, registration number and name, categories and statuses by name, UK dates, blank cells, and export → import round trips;
 - CSV reading/writing and formula escaping, export permissions and filtering, and import: creating, matching by ID and registration number, partial columns, all-or-nothing errors, and export → import round trips.
 

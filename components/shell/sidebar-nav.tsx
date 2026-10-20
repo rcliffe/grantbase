@@ -11,6 +11,11 @@ import type { NavSection } from "@/lib/navigation";
  */
 export function SidebarNav({ sections }: { sections: NavSection[] }) {
   const pathname = usePathname();
+  // Highlight only the most specific match, so /grants/decisions marks "Decisions", not also "Grants".
+  const activeHref = sections
+    .flatMap((s) => s.items.map((i) => i.href))
+    .filter((href) => pathname === href || pathname.startsWith(`${href}/`))
+    .sort((a, b) => b.length - a.length)[0];
   return (
     <nav aria-label="Main" className="flex gap-1 overflow-x-auto lg:flex-col lg:gap-5 lg:overflow-visible">
       {sections.map((section, i) => (
@@ -22,7 +27,7 @@ export function SidebarNav({ sections }: { sections: NavSection[] }) {
           )}
           <ul className="flex gap-1 lg:flex-col">
             {section.items.map((item) => {
-              const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+              const active = item.href === activeHref;
               return (
                 <li key={item.href}>
                   <Link
