@@ -56,6 +56,7 @@ server/                   Server-only code (every module imports "server-only")
   grant-lookups/service.ts Grant categories and statuses (ordering, unique names)
   grants/service.ts       Grant data access (filters, totals, reference checks)
   grants/csv-import.ts    Grant CSV import
+  grants/submissions-import.ts Import of an online form's submissions report (charities + grants)
   grants/process.ts       Decision and payment queues, approve/reject/mark as paid
 scripts/                  CLI: create administrator, reset password, database backup/restore
 prisma/                   Schema and migrations
@@ -89,7 +90,7 @@ With Cache Components enabled, anything that reads the session must render insid
 
 ## Charities
 
-Each charity has a name, an optional registration number, the year it was established, a brief description, a postal address (two lines, town, county, postcode, country), a contact email and a website. It also records who created and last updated it, and when.
+Each charity has a name, an optional registration number, the year it was established, a brief description, a postal address (two lines, town, county, postcode, country), a contact (name, position and email) and a website. It also records who created and last updated it, and when.
 
 | Action | Minimum role |
 | --- | --- |
@@ -119,7 +120,7 @@ Data rules, applied on the server:
 
 ## Grants
 
-A grant records an application a charity has submitted: its **charity**, **category** and **status**, an optional **purpose** (up to 4,000 characters; lists show its first line), the **date submitted** and **amount requested**, and, once known, the **decision date**, **amount agreed** and **payment date**. It also records who created and last updated it, and when.
+A grant records an application a charity has submitted: its **charity**, **category** and **status**, an optional **purpose** (up to 4,000 characters; lists show its first line), the **date submitted** and **amount requested**, and, once known, the **decision date**, **amount agreed** and **payment date**. Optionally it holds the charity's figures as stated in the application: date of latest audited accounts, income, expenditure, government funding, other funders, pence in the pound (0–100), and numbers of employees, volunteers and trustees. It also records who created and last updated it, and when.
 
 | Action | Minimum role |
 | --- | --- |
@@ -173,6 +174,17 @@ These work like the [charity CSV export and import](#csv-export-and-import): sam
   - Dates can be `2026-03-12` or `12/03/2026`, because Excel rewrites dates in UK format when it saves. Amounts can include `£` and commas.
   - Columns left out keep their current values; a blank cell clears the value, which required fields don't allow.
   - Every row passes the same validation as the grant form, including the date and amount consistency rules.
+
+### Importing application form submissions
+
+**Import submissions** on the Grants page (`/grants/import/submissions`, Editor) reads the submissions report of the online application form (one row per application, with the charity's details and the grant request in the same row). It uses the same size limits, **Check file** and all-or-nothing saving as the CSV imports.
+
+- Columns are recognised by their question text, ignoring case, punctuation and anything in brackets (`Grant Request Amount (£)` = `grant request amount`). The page lists every column and where it goes. Required: `Name of Charity/Organisation`, the category question, `Grant Request Amount (£)` and `Added Time` (the date submitted). Columns the app doesn't use (IP address, task owner …) are ignored, and any unknown ones are listed when the file is checked.
+- **Charity:** matched by registration number, or else by name (ignoring case and accents, and never a charity with a different registration number); otherwise it is added. An existing charity keeps its details: only **blank** fields are filled in from the file. Several rows for the same new charity add it once.
+- **Address:** the single address answer is split on commas and line breaks. A UK postcode and a country at the end are recognised, the last remaining part is the town, and the parts in between become address line 2.
+- **Grant:** the category and `Status` are matched by name; a blank status means the first active status at the *Awaiting decision* stage. `Date Discussed` and `Recommended/Approved Amount` become the decision date and amount agreed.
+- **Random ID** is stored as the grant's submission reference. Submissions already imported are skipped, so the same report can be imported again as it grows. To change imported grants, edit them or use the grant CSV import.
+- Answers such as `N/A`, `None`, `-` or `Exempt` count as blank in optional fields. Dates can be `27-Oct-2026 14:32:10`, `27 October 2026`, `27/10/2026` or `2026-10-27`; the time of day is dropped.
 
 ## Grant categories and statuses
 
@@ -314,6 +326,7 @@ They cover:
 - grant categories and statuses: administrator-only changes, unique names, ordering, deactivation and the standard status set;
 - grant process: queues, approving, rejecting and paying, form rules, missing stages, double and simultaneous decisions, UK dates;
 - grant CSV export filters and import: matching charities by ID, registration number and name, categories and statuses by name, UK dates, blank cells, and export → import round trips;
+- submissions import: the report's columns, address splitting, form date formats, placeholder answers, charity matching and blank-only updates, skipping submissions imported before, and all-or-nothing errors;
 - CSV reading/writing and formula escaping, export permissions and filtering, and import: creating, matching by ID and registration number, partial columns, all-or-nothing errors, and export → import round trips.
 
 ## Production configuration

@@ -1,7 +1,7 @@
 import "server-only";
 import { Prisma } from "@/generated/prisma/client";
 import { isLookupTone, type LookupTone } from "@/lib/grant-lookups";
-import { GRANT_PAGE_SIZE, type GrantInput } from "@/lib/grants";
+import { GRANT_PAGE_SIZE, grantData, type GrantInput } from "@/lib/grants";
 import { db } from "@/server/db/client";
 
 /**
@@ -34,6 +34,16 @@ const grantSelect = {
   amountAgreed: true,
   decisionDate: true,
   paymentDate: true,
+  accountsDate: true,
+  income: true,
+  expenditure: true,
+  governmentFunding: true,
+  otherFunders: true,
+  penceInPound: true,
+  employees: true,
+  volunteers: true,
+  trustees: true,
+  submissionReference: true,
   createdAt: true,
   updatedAt: true,
   charity: { select: { id: true, name: true, registrationNumber: true } },
@@ -45,9 +55,14 @@ const grantSelect = {
 
 type GrantRow = Prisma.GrantGetPayload<{ select: typeof grantSelect }>;
 
-export type GrantItem = Omit<GrantRow, "amountRequested" | "amountAgreed" | "category" | "status"> & {
+type AmountField = "amountRequested" | "amountAgreed" | "income" | "expenditure" | "governmentFunding";
+
+export type GrantItem = Omit<GrantRow, AmountField | "category" | "status"> & {
   amountRequested: string;
   amountAgreed: string | null;
+  income: string | null;
+  expenditure: string | null;
+  governmentFunding: string | null;
   category: GrantLookupRef;
   status: GrantLookupRef;
 };
@@ -57,6 +72,9 @@ const toItem = (row: GrantRow): GrantItem => ({
   ...row,
   amountRequested: row.amountRequested.toFixed(2),
   amountAgreed: row.amountAgreed?.toFixed(2) ?? null,
+  income: row.income?.toFixed(2) ?? null,
+  expenditure: row.expenditure?.toFixed(2) ?? null,
+  governmentFunding: row.governmentFunding?.toFixed(2) ?? null,
   category: toRef(row.category),
   status: toRef(row.status),
 });
@@ -157,22 +175,6 @@ export async function getGrantFormOptions(current?: { categoryId: string; status
 
 export type GrantFormOptions = Awaited<ReturnType<typeof getGrantFormOptions>>;
 
-const toDate = (iso: string | null) => (iso ? new Date(`${iso}T00:00:00Z`) : null);
-
-function toData(input: GrantInput) {
-  return {
-    charityId: input.charityId,
-    categoryId: input.categoryId,
-    statusId: input.statusId,
-    purpose: input.purpose,
-    dateSubmitted: new Date(`${input.dateSubmitted}T00:00:00Z`),
-    amountRequested: input.amountRequested,
-    amountAgreed: input.amountAgreed,
-    decisionDate: toDate(input.decisionDate),
-    paymentDate: toDate(input.paymentDate),
-  };
-}
-
 /**
  * The charity must exist, and the category and status must be active, unless they
  * are what the grant already had (an inactive entry can stay on an existing grant).
@@ -204,7 +206,7 @@ function translate(error: unknown): never {
 export async function createGrant(input: GrantInput, actorId: string): Promise<{ id: string }> {
   await checkReferences(input);
   try {
-    return await db().grant.create({ data: { ...toData(input), createdById: actorId, updatedById: actorId }, select: { id: true } });
+    return await db().grant.create({ data: { ...grantData(input), createdById: actorId, updatedById: actorId }, select: { id: true } });
   } catch (error) {
     translate(error);
   }
@@ -215,7 +217,7 @@ export async function updateGrant(id: string, input: GrantInput, actorId: string
   if (!existing) throw new GrantError("NOT_FOUND", "Grant not found.");
   await checkReferences(input, existing);
   try {
-    return await db().grant.update({ where: { id }, data: { ...toData(input), updatedById: actorId }, select: { id: true } });
+    return await db().grant.update({ where: { id }, data: { ...grantData(input), updatedById: actorId }, select: { id: true } });
   } catch (error) {
     translate(error);
   }

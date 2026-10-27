@@ -26,6 +26,8 @@ const existingSelect = {
   county: true,
   postcode: true,
   country: true,
+  contactName: true,
+  contactPosition: true,
   contactEmail: true,
   website: true,
 } satisfies Prisma.CharitySelect & Record<(typeof CHARITY_FIELDS)[number], true>;

@@ -24,6 +24,8 @@ const charityForm = (overrides: Record<string, string> = {}) =>
     county: "West Yorkshire",
     postcode: "ls1 1aa",
     country: "United Kingdom",
+    contactName: "Sam Patel",
+    contactPosition: "Treasurer",
     contactEmail: "Hello@Riverside.example",
     website: "riverside.example",
     ...overrides,
@@ -47,6 +49,8 @@ describe("charity validation", () => {
     county: "",
     postcode: "",
     country: "",
+    contactName: "",
+    contactPosition: "",
     contactEmail: "",
     website: "",
   };

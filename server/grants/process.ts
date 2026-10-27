@@ -1,7 +1,7 @@
 import "server-only";
 import { Prisma } from "@/generated/prisma/client";
 import { GRANT_STAGE_LABELS, type GrantStage } from "@/lib/grant-process";
-import { grantSchema, toDateInput } from "@/lib/grants";
+import { grantSchema, grantToValues } from "@/lib/grants";
 import { db } from "@/server/db/client";
 import { findGrants, type GrantItem } from "./service";
 
@@ -54,22 +54,28 @@ const grantForProcess = {
   amountAgreed: true,
   decisionDate: true,
   paymentDate: true,
+  accountsDate: true,
+  income: true,
+  expenditure: true,
+  governmentFunding: true,
+  otherFunders: true,
+  penceInPound: true,
+  employees: true,
+  volunteers: true,
+  trustees: true,
   status: { select: { name: true, stage: true } },
 } satisfies Prisma.GrantSelect;
 type ProcessGrant = Prisma.GrantGetPayload<{ select: typeof grantForProcess }>;
 
 /** Validates the grant as it will be after the step, with the grant form's rules. */
 function validate(grant: ProcessGrant, changes: { statusId: string; amountAgreed?: string; decisionDate?: string; paymentDate?: string }) {
+  const values = grantToValues(grant);
   const parsed = grantSchema.safeParse({
-    charityId: grant.charityId,
-    categoryId: grant.categoryId,
+    ...values,
     statusId: changes.statusId,
-    purpose: grant.purpose ?? "",
-    dateSubmitted: toDateInput(grant.dateSubmitted),
-    amountRequested: grant.amountRequested.toFixed(2),
-    amountAgreed: changes.amountAgreed ?? grant.amountAgreed?.toFixed(2) ?? "",
-    decisionDate: changes.decisionDate ?? toDateInput(grant.decisionDate),
-    paymentDate: changes.paymentDate ?? toDateInput(grant.paymentDate),
+    amountAgreed: changes.amountAgreed ?? values.amountAgreed,
+    decisionDate: changes.decisionDate ?? values.decisionDate,
+    paymentDate: changes.paymentDate ?? values.paymentDate,
   });
   if (!parsed.success) {
     const issue = parsed.error.issues[0];

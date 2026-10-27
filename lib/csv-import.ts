@@ -24,6 +24,8 @@ export type ImportSummary = {
   /** The first IMPORT_MAX_LISTED_ERRORS row errors, in row order. */
   rowErrors: ImportRowError[];
   rowErrorCount: number;
+  /** Further lines for the summary, e.g. charities added alongside the grants. */
+  notes?: string[];
 };
 
 export type ImportState = {
@@ -62,6 +64,14 @@ export async function readCsvUpload(
   }
 }
 
+/** Matches names the way the database collation does: ignoring case and accents. */
+export const nameKey = (s: string) =>
+  s
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .trim();
+
 /** Header matching ignores case, spaces, hyphens and underscores. */
 export const normaliseHeader = (h: string) => h.trim().toLowerCase().replace(/[\s_-]+/g, "");
 
@@ -83,7 +93,7 @@ export type ParsedRow<C extends string> = {
 export function parseCsvWithHeader<C extends string>(
   text: string,
   options: { lookup: (header: string) => C | "ignored" | null; required: { column: C; header: string }[] },
-): { ok: true; columns: (C | "ignored")[]; rows: ParsedRow<C>[] } | { ok: false; fileErrors: string[] } {
+): { ok: true; header: string[]; columns: (C | "ignored")[]; rows: ParsedRow<C>[] } | { ok: false; fileErrors: string[] } {
   let records: string[][];
   try {
     records = parseCsv(text);
@@ -114,6 +124,7 @@ export function parseCsvWithHeader<C extends string>(
 
   return {
     ok: true,
+    header,
     columns,
     rows: rows.map((cells, i) => {
       const values: Partial<Record<C, string>> = {};

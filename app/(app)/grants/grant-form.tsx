@@ -103,6 +103,47 @@ export function GrantForm({
       </fieldset>
 
       <fieldset className="space-y-4">
+        <legend className="mb-2 text-sm font-semibold">Organisation at the time of application</legend>
+        <p className="-mt-2 text-xs text-muted">Optional. The charity&apos;s figures as stated in the application.</p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <InputField name="accountsDate" label="Date of latest audited accounts" type="date" defaultValue={value("accountsDate")} error={errors.accountsDate} />
+          <InputField
+            name="penceInPound"
+            label="Pence in the pound"
+            inputMode="numeric"
+            maxLength={4}
+            placeholder="e.g. 85"
+            defaultValue={value("penceInPound")}
+            hint="Pence of each pound spent on charitable activities, 0 to 100."
+            error={errors.penceInPound}
+          />
+          <InputField name="income" label="Income (£)" inputMode="decimal" defaultValue={value("income")} error={errors.income} />
+          <InputField name="expenditure" label="Expenditure (£)" inputMode="decimal" defaultValue={value("expenditure")} error={errors.expenditure} />
+          <InputField
+            name="governmentFunding"
+            label="Government funding (£)"
+            inputMode="decimal"
+            defaultValue={value("governmentFunding")}
+            hint="From government or local authorities."
+            error={errors.governmentFunding}
+          />
+        </div>
+        <TextareaField
+          name="otherFunders"
+          label="Other funders"
+          rows={2}
+          maxLength={1000}
+          defaultValue={value("otherFunders")}
+          error={errors.otherFunders}
+        />
+        <div className="grid gap-4 sm:grid-cols-3">
+          <InputField name="employees" label="Employees" inputMode="numeric" defaultValue={value("employees")} error={errors.employees} />
+          <InputField name="volunteers" label="Volunteers" inputMode="numeric" defaultValue={value("volunteers")} error={errors.volunteers} />
+          <InputField name="trustees" label="Trustees" inputMode="numeric" defaultValue={value("trustees")} error={errors.trustees} />
+        </div>
+      </fieldset>
+
+      <fieldset className="space-y-4">
         <legend className="mb-2 text-sm font-semibold">Decision and payment</legend>
         <p className="-mt-2 text-xs text-muted">Leave these blank until they are known.</p>
         <div className="grid gap-4 sm:grid-cols-2">

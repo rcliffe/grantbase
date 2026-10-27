@@ -97,6 +97,13 @@ export default async function CharityPage({ params, searchParams }: PageProps<"/
           <CardBody>
             <dl className="space-y-3 text-sm">
               <div>
+                <dt className="text-muted">Name</dt>
+                <dd className="mt-0.5">
+                  {charity.contactName ?? <span className="text-muted">Not recorded</span>}
+                  {charity.contactPosition && <span className="text-muted"> · {charity.contactPosition}</span>}
+                </dd>
+              </div>
+              <div>
                 <dt className="text-muted">Email</dt>
                 <dd className="mt-0.5 break-all">
                   {charity.contactEmail ? (

@@ -88,6 +88,17 @@ export function CharityForm({
 
       <fieldset className="space-y-4">
         <legend className="mb-2 text-sm font-semibold">Contact</legend>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <InputField name="contactName" label="Contact name" autoComplete="name" defaultValue={value("contactName")} error={errors.contactName} />
+          <InputField
+            name="contactPosition"
+            label="Position"
+            autoComplete="organization-title"
+            defaultValue={value("contactPosition")}
+            hint="Their role in the organisation."
+            error={errors.contactPosition}
+          />
+        </div>
         <InputField name="contactEmail" label="Contact email" type="email" autoComplete="email" defaultValue={value("contactEmail")} error={errors.contactEmail} />
         <InputField
           name="website"

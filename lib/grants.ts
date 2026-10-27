@@ -86,6 +86,26 @@ function dateSchema(label: string, required: boolean) {
     });
 }
 
+/** Largest staff, volunteer or trustee count accepted; guards against typos. */
+const MAX_COUNT = 1_000_000;
+
+/** An optional whole number such as "12" or "1,200", or null when blank. */
+function countSchema(label: string, max: number) {
+  return z
+    .string()
+    .trim()
+    .transform((value, ctx) => {
+      if (value === "") return null;
+      const cleaned = value.replace(/,/g, "");
+      const n = /^\d+$/.test(cleaned) ? Number(cleaned) : NaN;
+      if (!(n <= max)) {
+        ctx.addIssue({ code: "custom", message: `Enter the ${label.toLowerCase()} as a whole number from 0 to ${max.toLocaleString("en-GB")}.` });
+        return z.NEVER;
+      }
+      return n;
+    });
+}
+
 const idSchema = (message: string) => z.string().trim().min(1, message).max(36, message);
 
 export const grantSchema = z
@@ -104,6 +124,23 @@ export const grantSchema = z
     amountAgreed: amountSchema("Amount agreed", false),
     decisionDate: dateSchema("Decision date", false),
     paymentDate: dateSchema("Payment date", false),
+    accountsDate: dateSchema("Date of latest audited accounts", false),
+    income: amountSchema("Income", false),
+    expenditure: amountSchema("Expenditure", false),
+    governmentFunding: amountSchema("Government funding", false),
+    otherFunders: z
+      .string()
+      .trim()
+      .max(1000, "Other funders must be at most 1,000 characters.")
+      .transform((v) => (v === "" ? null : v)),
+    // Written as "85", "85p" or "85%".
+    penceInPound: z
+      .string()
+      .transform((v) => v.trim().replace(/\s*[p%]$/i, ""))
+      .pipe(countSchema("Pence in the pound", 100)),
+    employees: countSchema("Number of employees", MAX_COUNT),
+    volunteers: countSchema("Number of volunteers", MAX_COUNT),
+    trustees: countSchema("Number of trustees", MAX_COUNT),
   })
   // ISO dates compare correctly as strings.
   .superRefine((g, ctx) => {
@@ -136,7 +173,81 @@ export const GRANT_FIELDS = [
   "amountAgreed",
   "decisionDate",
   "paymentDate",
+  "accountsDate",
+  "income",
+  "expenditure",
+  "governmentFunding",
+  "otherFunders",
+  "penceInPound",
+  "employees",
+  "volunteers",
+  "trustees",
 ] as const satisfies readonly (keyof GrantInput)[];
+
+type Field = (typeof GRANT_FIELDS)[number];
+
+/** A stored amount: a Prisma Decimal on the server, or a "2500.00" string. */
+type StoredAmount = { toFixed(digits: number): string } | string | null;
+
+/** A stored grant's fields, as the database or the service layer returns them. */
+export type StoredGrantFields = {
+  charityId: string;
+  categoryId: string;
+  statusId: string;
+  purpose: string | null;
+  dateSubmitted: Date;
+  amountRequested: StoredAmount;
+  amountAgreed: StoredAmount;
+  decisionDate: Date | null;
+  paymentDate: Date | null;
+  accountsDate: Date | null;
+  income: StoredAmount;
+  expenditure: StoredAmount;
+  governmentFunding: StoredAmount;
+  otherFunders: string | null;
+  penceInPound: number | null;
+  employees: number | null;
+  volunteers: number | null;
+  trustees: number | null;
+};
+
+const amountValue = (a: StoredAmount) => (a === null ? "" : typeof a === "string" ? a : a.toFixed(2));
+
+/** Form-style string values for a stored grant, as the form and imports validate them. */
+export function grantToValues(g: StoredGrantFields): Record<Field, string> {
+  return {
+    charityId: g.charityId,
+    categoryId: g.categoryId,
+    statusId: g.statusId,
+    purpose: g.purpose ?? "",
+    dateSubmitted: toDateInput(g.dateSubmitted),
+    amountRequested: amountValue(g.amountRequested),
+    amountAgreed: amountValue(g.amountAgreed),
+    decisionDate: toDateInput(g.decisionDate),
+    paymentDate: toDateInput(g.paymentDate),
+    accountsDate: toDateInput(g.accountsDate),
+    income: amountValue(g.income),
+    expenditure: amountValue(g.expenditure),
+    governmentFunding: amountValue(g.governmentFunding),
+    otherFunders: g.otherFunders ?? "",
+    penceInPound: g.penceInPound?.toString() ?? "",
+    employees: g.employees?.toString() ?? "",
+    volunteers: g.volunteers?.toString() ?? "",
+    trustees: g.trustees?.toString() ?? "",
+  };
+}
+
+/** Prisma data for a validated grant: calendar dates become UTC midnight. */
+export function grantData(g: GrantInput) {
+  const date = (iso: string | null) => (iso ? new Date(`${iso}T00:00:00Z`) : null);
+  return {
+    ...g,
+    dateSubmitted: new Date(`${g.dateSubmitted}T00:00:00Z`),
+    decisionDate: date(g.decisionDate),
+    paymentDate: date(g.paymentDate),
+    accountsDate: date(g.accountsDate),
+  };
+}
 
 const money = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" });
 const longDate = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeZone: "UTC" });

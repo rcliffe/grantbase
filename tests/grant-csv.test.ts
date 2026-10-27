@@ -86,7 +86,9 @@ describe("grant CSV export", () => {
     const [header, ...rows] = parseCsv(await response.text());
     expect(header).toEqual([
       "ID", "Charity", "Charity registration number", "Charity ID", "Category", "Status", "Purpose",
-      "Date submitted", "Amount requested", "Amount agreed", "Decision date", "Payment date", "Created at", "Updated at",
+      "Date submitted", "Amount requested", "Amount agreed", "Decision date", "Payment date",
+      "Date of latest audited accounts", "Income", "Expenditure", "Government funding", "Other funders", "Pence in the pound",
+      "Employees", "Volunteers", "Trustees", "Submission reference", "Created at", "Updated at",
     ]);
     const byPurpose = Object.fromEntries(rows.map((r) => [r[6], Object.fromEntries(header.map((h, i) => [h, r[i]]))]));
     expect(byPurpose["'=cmd|' /C calc'!A0\nsecond line"]).toMatchObject({

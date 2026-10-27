@@ -115,6 +115,8 @@ export const charitySchema = z.object({
   county: optionalText(100, "County"),
   postcode: optionalText(20, "Postcode").transform((v) => v?.toUpperCase() ?? null),
   country: optionalText(100, "Country"),
+  contactName: optionalText(200, "Contact name"),
+  contactPosition: optionalText(200, "Position"),
   contactEmail: contactEmailSchema,
   website: websiteSchema,
 });
@@ -132,6 +134,8 @@ export const CHARITY_FIELDS = [
   "county",
   "postcode",
   "country",
+  "contactName",
+  "contactPosition",
   "contactEmail",
   "website",
 ] as const satisfies readonly (keyof CharityInput)[];

@@ -16,6 +16,8 @@ export const CHARITY_CSV_COLUMNS = [
   { header: "County", field: "county", help: null },
   { header: "Postcode", field: "postcode", help: null },
   { header: "Country", field: "country", help: null },
+  { header: "Contact name", field: "contactName", help: null },
+  { header: "Contact position", field: "contactPosition", help: null },
   { header: "Contact email", field: "contactEmail", help: null },
   { header: "Website", field: "website", help: null },
   { header: "Created at", field: null, help: "Ignored on import." },

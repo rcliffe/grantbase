@@ -37,6 +37,15 @@ const values = (overrides: Record<string, string> = {}) => ({
   amountAgreed: "",
   decisionDate: "",
   paymentDate: "",
+  accountsDate: "",
+  income: "",
+  expenditure: "",
+  governmentFunding: "",
+  otherFunders: "",
+  penceInPound: "",
+  employees: "",
+  volunteers: "",
+  trustees: "",
   ...overrides,
 });
 const grantForm = (overrides: Record<string, string> = {}) => formData(values(overrides));

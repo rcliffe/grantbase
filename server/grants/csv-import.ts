@@ -1,9 +1,9 @@
 import "server-only";
 import { Prisma } from "@/generated/prisma/client";
 import { normaliseRegistrationNumber } from "@/lib/charities";
-import { emptyImportSummary, importSummary, parseCsvWithHeader, type ImportRowError, type ImportSummary } from "@/lib/csv-import";
+import { emptyImportSummary, importSummary, nameKey, parseCsvWithHeader, type ImportRowError, type ImportSummary } from "@/lib/csv-import";
 import { GRANT_CSV_LABELS, grantColumnForHeader, normaliseImportDate, type GrantCsvColumn } from "@/lib/grant-csv";
-import { GRANT_FIELDS, grantSchema, toDateInput, type GrantInput } from "@/lib/grants";
+import { GRANT_FIELDS, grantData, grantSchema, grantToValues, type GrantInput } from "@/lib/grants";
 import { db } from "@/server/db/client";
 
 /**
@@ -27,11 +27,36 @@ const FIELD_LABELS: Record<Field, string> = {
   amountAgreed: GRANT_CSV_LABELS.amountAgreed,
   decisionDate: GRANT_CSV_LABELS.decisionDate,
   paymentDate: GRANT_CSV_LABELS.paymentDate,
+  accountsDate: GRANT_CSV_LABELS.accountsDate,
+  income: GRANT_CSV_LABELS.income,
+  expenditure: GRANT_CSV_LABELS.expenditure,
+  governmentFunding: GRANT_CSV_LABELS.governmentFunding,
+  otherFunders: GRANT_CSV_LABELS.otherFunders,
+  penceInPound: GRANT_CSV_LABELS.penceInPound,
+  employees: GRANT_CSV_LABELS.employees,
+  volunteers: GRANT_CSV_LABELS.volunteers,
+  trustees: GRANT_CSV_LABELS.trustees,
 };
 
 /** Columns copied straight into the form values (dates normalised). */
-const PLAIN_COLUMNS = ["purpose", "dateSubmitted", "amountRequested", "amountAgreed", "decisionDate", "paymentDate"] as const;
-const DATE_COLUMNS = new Set<string>(["dateSubmitted", "decisionDate", "paymentDate"]);
+const PLAIN_COLUMNS = [
+  "purpose",
+  "dateSubmitted",
+  "amountRequested",
+  "amountAgreed",
+  "decisionDate",
+  "paymentDate",
+  "accountsDate",
+  "income",
+  "expenditure",
+  "governmentFunding",
+  "otherFunders",
+  "penceInPound",
+  "employees",
+  "volunteers",
+  "trustees",
+] as const satisfies readonly Exclude<Field, "charityId" | "categoryId" | "statusId">[];
+const DATE_COLUMNS = new Set<string>(["dateSubmitted", "decisionDate", "paymentDate", "accountsDate"]);
 
 const existingSelect = {
   id: true,
@@ -44,43 +69,22 @@ const existingSelect = {
   amountAgreed: true,
   decisionDate: true,
   paymentDate: true,
-} satisfies Prisma.GrantSelect;
+  accountsDate: true,
+  income: true,
+  expenditure: true,
+  governmentFunding: true,
+  otherFunders: true,
+  penceInPound: true,
+  employees: true,
+  volunteers: true,
+  trustees: true,
+} satisfies Prisma.GrantSelect & Record<Field, true>;
 type Existing = Prisma.GrantGetPayload<{ select: typeof existingSelect }>;
 
-function toValues(g: Existing): Values {
-  return {
-    charityId: g.charityId,
-    categoryId: g.categoryId,
-    statusId: g.statusId,
-    purpose: g.purpose ?? "",
-    dateSubmitted: toDateInput(g.dateSubmitted),
-    amountRequested: g.amountRequested.toFixed(2),
-    amountAgreed: g.amountAgreed?.toFixed(2) ?? "",
-    decisionDate: toDateInput(g.decisionDate),
-    paymentDate: toDateInput(g.paymentDate),
-  };
-}
-
 /** Same values after validation, for spotting unchanged rows. */
-const sameAs = (data: GrantInput, before: Values) => GRANT_FIELDS.every((f) => (data[f] ?? "") === before[f]);
-
-/** Matches names the way the database collation does: ignoring case and accents. */
-const nameKey = (s: string) =>
-  s
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .toLowerCase()
-    .trim();
+const sameAs = (data: GrantInput, before: Values) => GRANT_FIELDS.every((f) => String(data[f] ?? "") === before[f]);
 
 type PlannedRow = { row: number; targetId: string | null; data: GrantInput; changed: boolean };
-
-const toDate = (iso: string | null) => (iso ? new Date(`${iso}T00:00:00Z`) : null);
-const toData = (g: GrantInput) => ({
-  ...g,
-  dateSubmitted: new Date(`${g.dateSubmitted}T00:00:00Z`),
-  decisionDate: toDate(g.decisionDate),
-  paymentDate: toDate(g.paymentDate),
-});
 
 export async function importGrantsCsv(text: string, actorId: string, options: { commit: boolean }): Promise<ImportSummary> {
   const parsedCsv = parseCsvWithHeader<GrantCsvColumn>(text, { lookup: grantColumnForHeader, required: [] });
@@ -166,9 +170,7 @@ export async function importGrantsCsv(text: string, actorId: string, options: { 
       targetRows.set(id, row);
     }
 
-    const values: Values = target
-      ? toValues(target)
-      : { charityId: "", categoryId: "", statusId: "", purpose: "", dateSubmitted: "", amountRequested: "", amountAgreed: "", decisionDate: "", paymentDate: "" };
+    const values: Values = target ? grantToValues(target) : (Object.fromEntries(GRANT_FIELDS.map((f) => [f, ""])) as Values);
 
     const charity = resolveCharity(v);
     if (charity && "error" in charity) errors.push(`Charity: ${charity.error}`);
@@ -216,7 +218,7 @@ export async function importGrantsCsv(text: string, actorId: string, options: { 
       rowErrors.push({ row, message: errors.join(" ") });
       continue;
     }
-    planned.push({ row, targetId: target?.id ?? null, data: parsed.data, changed: !target || !sameAs(parsed.data, toValues(target)) });
+    planned.push({ row, targetId: target?.id ?? null, data: parsed.data, changed: !target || !sameAs(parsed.data, grantToValues(target)) });
   }
 
   const creates = planned.filter((p) => !p.targetId);
@@ -232,10 +234,10 @@ export async function importGrantsCsv(text: string, actorId: string, options: { 
     await db().$transaction(
       async (tx) => {
         if (creates.length) {
-          await tx.grant.createMany({ data: creates.map((p) => ({ ...toData(p.data), createdById: actorId, updatedById: actorId })) });
+          await tx.grant.createMany({ data: creates.map((p) => ({ ...grantData(p.data), createdById: actorId, updatedById: actorId })) });
         }
         for (const p of updates) {
-          await tx.grant.update({ where: { id: p.targetId! }, data: { ...toData(p.data), updatedById: actorId } });
+          await tx.grant.update({ where: { id: p.targetId! }, data: { ...grantData(p.data), updatedById: actorId } });
         }
       },
       { timeout: 120_000 },

@@ -36,6 +36,8 @@ export default async function GrantPage({ params, searchParams }: PageProps<"/gr
 
   const canEdit = hasRole(user.role, GRANT_PERMISSIONS.edit);
   const canDelete = hasRole(user.role, GRANT_PERMISSIONS.delete);
+  const money = (amount: string | null) => (amount ? <span className="tabular-nums">{formatMoney(amount)}</span> : <Dash />);
+  const count = (n: number | null) => (n === null ? <Dash /> : <span className="tabular-nums">{n.toLocaleString("en-GB")}</span>);
   const label = `submitted ${formatDate(grant.dateSubmitted)} by ${grant.charity.name}`;
 
   return (
@@ -111,6 +113,27 @@ export default async function GrantPage({ params, searchParams }: PageProps<"/gr
         </Card>
       </div>
 
+      <Card className="mt-6">
+        <CardHeader title="Organisation at the time of application" description="The charity's figures as stated in the application." />
+        <CardBody>
+          <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
+            <Item label="Date of latest audited accounts">{grant.accountsDate ? formatDate(grant.accountsDate) : <Dash />}</Item>
+            <Item label="Income">{money(grant.income)}</Item>
+            <Item label="Expenditure">{money(grant.expenditure)}</Item>
+            <Item label="Government funding">{money(grant.governmentFunding)}</Item>
+            <Item label="Pence in the pound">{grant.penceInPound === null ? <Dash /> : `${grant.penceInPound}p`}</Item>
+            <Item label="Employees">{count(grant.employees)}</Item>
+            <Item label="Volunteers">{count(grant.volunteers)}</Item>
+            <Item label="Trustees">{count(grant.trustees)}</Item>
+          </dl>
+          <dl className="mt-3 text-sm">
+            <Item label="Other funders">
+              {grant.otherFunders ? <span className="break-words whitespace-pre-line">{grant.otherFunders}</span> : <Dash />}
+            </Item>
+          </dl>
+        </CardBody>
+      </Card>
+
       {canDelete && (
         <Card className="mt-6">
           <CardHeader title="Delete grant" description="Permanently removes this grant. This can't be undone." />
@@ -124,6 +147,7 @@ export default async function GrantPage({ params, searchParams }: PageProps<"/gr
         Added {dateTime.format(grant.createdAt)}
         {grant.createdBy && ` by ${grant.createdBy.name}`} · Last updated {dateTime.format(grant.updatedAt)}
         {grant.updatedBy && ` by ${grant.updatedBy.name}`}
+        {grant.submissionReference && ` · Imported from form submission ${grant.submissionReference}`}
       </p>
     </>
   );

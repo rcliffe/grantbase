@@ -14,7 +14,16 @@ export type GrantCsvColumn =
   | "amountRequested"
   | "amountAgreed"
   | "decisionDate"
-  | "paymentDate";
+  | "paymentDate"
+  | "accountsDate"
+  | "income"
+  | "expenditure"
+  | "governmentFunding"
+  | "otherFunders"
+  | "penceInPound"
+  | "employees"
+  | "volunteers"
+  | "trustees";
 
 /** Columns of an exported file, in order. `column` is null for read-only columns. */
 export const GRANT_CSV_COLUMNS = [
@@ -30,6 +39,16 @@ export const GRANT_CSV_COLUMNS = [
   { header: "Amount agreed", column: "amountAgreed", help: "In pounds. Needs a decision date." },
   { header: "Decision date", column: "decisionDate", help: null },
   { header: "Payment date", column: "paymentDate", help: null },
+  { header: "Date of latest audited accounts", column: "accountsDate", help: "The charity's figures as stated in the application." },
+  { header: "Income", column: "income", help: "In pounds." },
+  { header: "Expenditure", column: "expenditure", help: "In pounds." },
+  { header: "Government funding", column: "governmentFunding", help: "From government or local authorities, in pounds." },
+  { header: "Other funders", column: "otherFunders", help: "Up to 1,000 characters." },
+  { header: "Pence in the pound", column: "penceInPound", help: "Pence of each pound spent on charitable activities, 0 to 100." },
+  { header: "Employees", column: "employees", help: "Whole numbers." },
+  { header: "Volunteers", column: "volunteers", help: null },
+  { header: "Trustees", column: "trustees", help: null },
+  { header: "Submission reference", column: null, help: "The online-form submission the grant came from. Ignored on import." },
   { header: "Created at", column: null, help: "Ignored on import." },
   { header: "Updated at", column: null, help: "Ignored on import." },
 ] as const satisfies readonly { header: string; column: GrantCsvColumn | null; help: string | null }[];

@@ -30,6 +30,26 @@ function cell(g: GrantItem, header: (typeof GRANT_CSV_COLUMNS)[number]["header"]
       return toDateInput(g.decisionDate);
     case "Payment date":
       return toDateInput(g.paymentDate);
+    case "Date of latest audited accounts":
+      return toDateInput(g.accountsDate);
+    case "Income":
+      return g.income ?? "";
+    case "Expenditure":
+      return g.expenditure ?? "";
+    case "Government funding":
+      return g.governmentFunding ?? "";
+    case "Other funders":
+      return g.otherFunders ?? "";
+    case "Pence in the pound":
+      return g.penceInPound?.toString() ?? "";
+    case "Employees":
+      return g.employees?.toString() ?? "";
+    case "Volunteers":
+      return g.volunteers?.toString() ?? "";
+    case "Trustees":
+      return g.trustees?.toString() ?? "";
+    case "Submission reference":
+      return g.submissionReference ?? "";
     case "Created at":
       return g.createdAt.toISOString();
     case "Updated at":

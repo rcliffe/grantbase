@@ -45,6 +45,9 @@ export function CsvImportForm({
           {plural(summary.unchanged, "row matches", "rows match")} an existing {noun.one} with no changes
         </li>
       )}
+      {summary.notes?.map((note) => (
+        <li key={note}>{note}</li>
+      ))}
     </ul>
   );
   const hasErrors = summary && (summary.fileErrors.length > 0 || summary.rowErrorCount > 0);

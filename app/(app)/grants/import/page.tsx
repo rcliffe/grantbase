@@ -37,6 +37,13 @@ export default async function ImportGrantsPage() {
           <CardBody>
             <ul className="list-inside list-disc space-y-1.5 text-sm">
               <li>
+                For an online application form&apos;s submissions report, use{" "}
+                <Link href="/grants/import/submissions" className="text-accent hover:underline">
+                  Import submissions
+                </Link>{" "}
+                instead: it adds the charities as well.
+              </li>
+              <li>
                 The easiest starting point is an{" "}
                 {/* A plain link: the route returns a file download, not a page. */}
                 {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}

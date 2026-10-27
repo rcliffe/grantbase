@@ -50,9 +50,14 @@ export default async function GrantsPage({ searchParams }: PageProps<"/grants">)
         </a>
       )}
       {hasRole(user.role, GRANT_PERMISSIONS.import) && (
-        <LinkButton href="/grants/import" variant="secondary">
-          Import CSV
-        </LinkButton>
+        <>
+          <LinkButton href="/grants/import/submissions" variant="secondary">
+            Import submissions
+          </LinkButton>
+          <LinkButton href="/grants/import" variant="secondary">
+            Import CSV
+          </LinkButton>
+        </>
       )}
       {newButton}
     </>

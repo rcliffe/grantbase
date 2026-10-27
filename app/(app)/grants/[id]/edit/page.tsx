@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card, CardBody } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/misc";
-import { GRANT_PERMISSIONS, toDateInput } from "@/lib/grants";
+import { GRANT_PERMISSIONS, grantToValues } from "@/lib/grants";
 import { userIdSchema } from "@/lib/validation";
 import { requireRole } from "@/server/authz/guards";
 import { getGrant, getGrantFormOptions } from "@/server/grants/service";
@@ -35,15 +35,7 @@ export default async function EditGrantPage({ params }: PageProps<"/grants/[id]/
             options={options}
             grant={{
               id: grant.id,
-              charityId: grant.charity.id,
-              categoryId: grant.category.id,
-              statusId: grant.status.id,
-              purpose: grant.purpose ?? "",
-              dateSubmitted: toDateInput(grant.dateSubmitted),
-              amountRequested: grant.amountRequested,
-              amountAgreed: grant.amountAgreed ?? "",
-              decisionDate: toDateInput(grant.decisionDate),
-              paymentDate: toDateInput(grant.paymentDate),
+              ...grantToValues({ ...grant, charityId: grant.charity.id, categoryId: grant.category.id, statusId: grant.status.id }),
             }}
             submitLabel="Save changes"
             cancelHref={`/grants/${grant.id}`}

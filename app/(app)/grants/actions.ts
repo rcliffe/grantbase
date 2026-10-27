@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { CHARITY_PERMISSIONS } from "@/lib/charities";
 import { readCsvUpload, type ImportState } from "@/lib/csv-import";
 import type { FormState } from "@/lib/form-state";
 import { GRANT_FIELDS, GRANT_PERMISSIONS, grantSchema } from "@/lib/grants";
@@ -9,6 +10,7 @@ import { requireRole } from "@/server/authz/guards";
 import { importGrantsCsv } from "@/server/grants/csv-import";
 import { decideGrant, markGrantPaid, ProcessError } from "@/server/grants/process";
 import { createGrant, deleteGrant, GrantError, updateGrant } from "@/server/grants/service";
+import { importSubmissionsCsv } from "@/server/grants/submissions-import";
 
 /* Every action checks the caller's role first: actions are public endpoints. */
 
@@ -74,6 +76,17 @@ export async function importGrantsAction(_prev: ImportState, formData: FormData)
   const upload = await readCsvUpload(formData);
   if (!upload.ok) return { error: upload.error };
   const summary = await importGrantsCsv(upload.text, user.id, { commit: upload.mode === "import" });
+  return { mode: upload.mode, fileName: upload.fileName, summary };
+}
+
+/** Adds charities and grants from an online application form's submissions report. */
+export async function importSubmissionsAction(_prev: ImportState, formData: FormData): Promise<ImportState> {
+  // Adds charities too, so it needs both permissions.
+  const user = await requireRole(GRANT_PERMISSIONS.import);
+  await requireRole(CHARITY_PERMISSIONS.import);
+  const upload = await readCsvUpload(formData);
+  if (!upload.ok) return { error: upload.error };
+  const summary = await importSubmissionsCsv(upload.text, user.id, { commit: upload.mode === "import" });
   return { mode: upload.mode, fileName: upload.fileName, summary };
 }
 
