@@ -6,7 +6,7 @@ import { Button, LinkButton } from "@/components/ui/button";
 import { InputField, SelectField, TextareaField } from "@/components/ui/field";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { initialFormState, type FormState } from "@/lib/form-state";
-import { LOOKUP_CONFIG, LOOKUP_TONE_LABELS, LOOKUP_TONES, type LookupKind, type LookupTone } from "@/lib/grant-lookups";
+import { LOOKUP_CONFIG, LOOKUP_NAME_MAX_LENGTH, LOOKUP_TONE_LABELS, LOOKUP_TONES, type LookupKind, type LookupTone } from "@/lib/grant-lookups";
 import { GRANT_STAGE_HELP, GRANT_STAGE_LABELS, GRANT_STAGES, type GrantStage } from "@/lib/grant-process";
 import { addStandardStatusesAction, createLookupAction, deleteLookupAction, moveLookupAction, updateLookupAction } from "./actions";
 
@@ -31,16 +31,22 @@ function LookupFields({ state, item, kind }: { state: FormState; item?: Item; ki
   const active = v ? v.active === "on" : (item?.active ?? true);
   return (
     <>
-      <div className="grid gap-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-        <InputField name="name" label="Name" required maxLength={100} defaultValue={v?.name ?? item?.name ?? ""} error={errors.name} />
-        <SelectField
-          name="tone"
-          label="Badge colour"
-          options={toneOptions}
-          defaultValue={v?.tone || item?.tone || "neutral"}
-          error={errors.tone}
-        />
-      </div>
+      <InputField
+        name="name"
+        label="Name"
+        required
+        maxLength={LOOKUP_NAME_MAX_LENGTH}
+        defaultValue={v?.name ?? item?.name ?? ""}
+        error={errors.name}
+      />
+      <SelectField
+        name="tone"
+        label="Badge colour"
+        options={toneOptions}
+        defaultValue={v?.tone || item?.tone || "neutral"}
+        error={errors.tone}
+        className="sm:max-w-xs"
+      />
       <TextareaField
         name="description"
         label="Description"

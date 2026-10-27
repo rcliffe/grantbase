@@ -144,7 +144,7 @@ model Charity {
 model GrantCategory {
   id          String   @id @default(cuid()) @db.VarChar(36)
   /// Unique, case-insensitively (utf8mb4_unicode_ci).
-  name        String   @unique @db.VarChar(100)
+  name        String   @unique @db.VarChar(255)
   description String?  @db.VarChar(500)
   /// Badge colour: one of LOOKUP_TONES in lib/grant-lookups.ts.
   tone        String   @default("neutral") @db.VarChar(20)
@@ -170,7 +170,7 @@ enum GrantStage {
 
 model GrantStatus {
   id          String      @id @default(cuid()) @db.VarChar(36)
-  name        String      @unique @db.VarChar(100)
+  name        String      @unique @db.VarChar(255)
   description String?     @db.VarChar(500)
   tone        String      @default("neutral") @db.VarChar(20)
   stage       GrantStage?

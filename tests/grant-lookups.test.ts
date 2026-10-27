@@ -52,6 +52,13 @@ describe("grant lookup validation", () => {
     const result = lookupSchema.safeParse({ name: " ", description: "x".repeat(501), tone: "purple" });
     expect(result.error?.issues.map((i) => i.path[0])).toEqual(expect.arrayContaining(["name", "description", "tone"]));
   });
+
+  it("allows names of up to 255 characters", () => {
+    expect(lookupSchema.safeParse({ name: "x".repeat(255), description: "", tone: "neutral" }).success).toBe(true);
+    expect(lookupSchema.safeParse({ name: "x".repeat(256), description: "", tone: "neutral" }).error?.issues[0].message).toBe(
+      "Name must be at most 255 characters.",
+    );
+  });
 });
 
 describe("grant lookup permissions", () => {
@@ -82,6 +89,9 @@ describe("maintaining grant categories and statuses", () => {
     await add("status", "Draft");
     expect(await names("category")).toEqual(["Capital", "Revenue"]);
     expect(await names("status")).toEqual(["Draft"]);
+    const long = `Education, training and employment ${"x".repeat(220)}`;
+    await add("category", long);
+    expect(await names("category")).toContain(long);
     expect(await db().grantCategory.findFirstOrThrow({ where: { name: "Capital" } })).toMatchObject({
       description: "Buildings and equipment",
       tone: "accent",

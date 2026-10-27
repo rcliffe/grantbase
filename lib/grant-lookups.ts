@@ -8,6 +8,9 @@ import type { Role } from "./roles";
  */
 
 export const LOOKUP_KINDS = ["category", "status"] as const;
+
+/** Longest category or status name (the column is VARCHAR(255)). */
+export const LOOKUP_NAME_MAX_LENGTH = 255;
 export type LookupKind = (typeof LOOKUP_KINDS)[number];
 
 export const LOOKUP_PERMISSIONS = {
@@ -62,7 +65,11 @@ export const STANDARD_GRANT_STATUSES: { name: string; description: string; tone:
 export const lookupKindSchema = z.enum(LOOKUP_KINDS);
 
 export const lookupSchema = z.object({
-  name: z.string().trim().min(1, "Enter a name.").max(100, "Name must be at most 100 characters."),
+  name: z
+    .string()
+    .trim()
+    .min(1, "Enter a name.")
+    .max(LOOKUP_NAME_MAX_LENGTH, `Name must be at most ${LOOKUP_NAME_MAX_LENGTH} characters.`),
   description: z
     .string()
     .trim()
