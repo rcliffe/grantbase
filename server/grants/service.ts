@@ -1,7 +1,7 @@
 import "server-only";
 import { Prisma } from "@/generated/prisma/client";
 import { isLookupTone, type LookupTone } from "@/lib/grant-lookups";
-import { grantData, type GrantInput } from "@/lib/grants";
+import { grantData, isIsoDate, type GrantInput, type GrantOrder } from "@/lib/grants";
 import { clampPage, pageSize, type PageSize } from "@/lib/pagination";
 import { db } from "@/server/db/client";
 
@@ -81,14 +81,27 @@ const toItem = (row: GrantRow): GrantItem => ({
 });
 
 const orderBy = [{ dateSubmitted: "desc" }, { createdAt: "desc" }, { id: "asc" }] satisfies Prisma.GrantOrderByWithRelationInput[];
+const oldestFirst = [{ dateSubmitted: "asc" }, { createdAt: "asc" }, { id: "asc" }] satisfies Prisma.GrantOrderByWithRelationInput[];
+const orderFor = (order: GrantOrder | undefined) => (order === "oldest" ? oldestFirst : orderBy);
 
-export type GrantFilters = { query?: string; statusId?: string; categoryId?: string; charityId?: string };
+export type GrantFilters = {
+  query?: string;
+  statusId?: string;
+  categoryId?: string;
+  charityId?: string;
+  /** Date submitted on or after / on or before, as YYYY-MM-DD; anything else is ignored. */
+  dateFrom?: string;
+  dateTo?: string;
+};
 
 function filterWhere(filters: GrantFilters): Prisma.GrantWhereInput {
   const query = filters.query?.trim().slice(0, 100) ?? "";
   // Prisma's `contains` passes LIKE wildcards through, so escape them to search literally.
   const like = query.replace(/[\\%_]/g, "\\$&");
+  const day = (value: string | undefined) => (value && isIsoDate(value) ? new Date(`${value}T00:00:00Z`) : undefined);
+  const [from, to] = [day(filters.dateFrom), day(filters.dateTo)];
   return {
+    ...(from || to ? { dateSubmitted: { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } } : {}),
     ...(filters.statusId ? { statusId: filters.statusId } : {}),
     ...(filters.categoryId ? { categoryId: filters.categoryId } : {}),
     ...(filters.charityId ? { charityId: filters.charityId } : {}),
@@ -106,7 +119,7 @@ function filterWhere(filters: GrantFilters): Prisma.GrantWhereInput {
 
 export type GrantTotals = { count: number; requested: string; agreed: string };
 
-export async function listGrants(filters: GrantFilters & { page?: number; pageSize?: number } = {}): Promise<{
+export async function listGrants(filters: GrantFilters & { order?: GrantOrder; page?: number; pageSize?: number } = {}): Promise<{
   items: GrantItem[];
   totals: GrantTotals;
   page: number;
@@ -121,7 +134,7 @@ export async function listGrants(filters: GrantFilters & { page?: number; pageSi
   const rows = await db().grant.findMany({
     where,
     select: grantSelect,
-    orderBy,
+    orderBy: orderFor(filters.order),
     skip,
     take: size,
   });
@@ -146,9 +159,9 @@ export async function findGrants(
   return (await db().grant.findMany({ where, select: grantSelect, orderBy: order })).map(toItem);
 }
 
-/** Every grant matching the list filters, newest first, for CSV export. */
-export async function exportGrants(filters: GrantFilters = {}): Promise<GrantItem[]> {
-  return (await db().grant.findMany({ where: filterWhere(filters), select: grantSelect, orderBy })).map(toItem);
+/** Every grant matching the list filters, in the list's order (newest first by default), for CSV export. */
+export async function exportGrants(filters: GrantFilters & { order?: GrantOrder } = {}): Promise<GrantItem[]> {
+  return (await db().grant.findMany({ where: filterWhere(filters), select: grantSelect, orderBy: orderFor(filters.order) })).map(toItem);
 }
 
 /** All grants for one charity, newest first. */

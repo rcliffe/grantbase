@@ -130,7 +130,7 @@ A grant records an application a charity has submitted: its **charity**, **categ
 
 These rules live in `GRANT_PERMISSIONS` (`lib/grants.ts`) and are enforced in every page and Server Action.
 
-- **Grants** in the sidebar lists all grants, newest first, with search (charity name, registration number or purpose), status and category filters, and totals for the count, amount requested and amount agreed. Totals cover all matching grants, not just the current page, which shows 10, 25 (the default) or 50 grants.
+- **Grants** in the sidebar lists all grants, newest first (click the **Submitted** heading to switch to oldest first), with search (charity name, registration number or purpose), status and category filters, a received date range (date submitted from and to, both included), and totals for the count, amount requested and amount agreed. Totals cover all matching grants, not just the current page, which shows 10, 25 (the default) or 50 grants.
 - Each charity's page lists its grants with totals, and has an **Add grant** button that pre-selects the charity.
 - **Amounts** are in pounds to the penny (`DECIMAL(12,2)`). Input such as `2500`, `£2,500.50` or `2 500` is accepted. Amounts are handled as exact decimal strings, never floating-point numbers.
 - **Dates** are calendar dates (`DATE`), with no time of day, so they never shift between time zones.
@@ -167,7 +167,7 @@ The statuses page warns when a stage has no active status. The standard status s
 
 These work like the [charity CSV export and import](#csv-export-and-import): same file format, size limits, **Check file** and all-or-nothing saving. Differences:
 
-- **Export** (**Export CSV** on the Grants page, or `/grants/export`) honours the list's search, status and category filters. Amounts are plain numbers (`2500.00`) and dates are `YYYY-MM-DD`.
+- **Export** (**Export CSV** on the Grants page, or `/grants/export`) honours the list's search, status, category and received date filters, and its order. Amounts are plain numbers (`2500.00`) and dates are `YYYY-MM-DD`.
 - **Import** (**Import CSV**, `/grants/import`): a row with an **ID** updates that grant; a row without one **adds** a grant (there's no other natural key, so re-importing a file without IDs adds duplicates).
   - The **charity** must already exist. It is found by `Charity ID`, else `Charity registration number`, else `Charity` name; a name shared by several charities is rejected. When all three cells are blank, an updated grant keeps its charity.
   - **Category** and **Status** are matched by name, ignoring case. New grants, and changes of category or status, must use active entries.
@@ -211,7 +211,8 @@ Prerequisites: Node.js 20.9+ (24 recommended), Docker with Compose.
 
 ```bash
 # 1. Configuration: copy, then replace every placeholder
-cp .env.example .env
+cp
+.env.example .env
 #    Generate secrets with: openssl rand -base64 32
 #    Keep the password/port in DATABASE_URL, SHADOW_DATABASE_URL and TEST_DATABASE_URL
 #    in line with the MARIADB_* values.

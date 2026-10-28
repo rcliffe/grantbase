@@ -217,12 +217,24 @@ describe("grant data rules", () => {
     const all = await listGrants();
     expect(all.totals).toEqual({ count: 3, requested: "3300.30", agreed: "1500.05" });
     expect(all.items.map((g) => g.dateSubmitted.toISOString().slice(0, 10))).toEqual(["2026-02-01", "2026-01-15", "2026-01-01"]);
+    const oldest = await listGrants({ order: "oldest" });
+    expect(oldest.items.map((g) => g.dateSubmitted.toISOString().slice(0, 10))).toEqual(["2026-01-01", "2026-01-15", "2026-02-01"]);
 
     expect((await listGrants({ statusId: awarded.id })).totals).toMatchObject({ count: 1, requested: "2000.20" });
     expect((await listGrants({ query: "hilltop" })).items.map((g) => g.purpose)).toEqual(["Roof repairs"]);
     expect((await listGrants({ query: "roof" })).totals.count).toBe(1);
     expect((await listGrants({ query: "1234567" })).totals.count).toBe(2); // registration number
     expect((await listGrants({ query: "%" })).totals.count).toBe(0); // not a wildcard
+
+    // Date submitted range, both ends included.
+    const received = async (dateFrom: string, dateTo: string) =>
+      (await listGrants({ dateFrom, dateTo })).items.map((g) => g.dateSubmitted.toISOString().slice(0, 10));
+    expect(await received("2026-01-15", "2026-02-01")).toEqual(["2026-02-01", "2026-01-15"]);
+    expect(await received("2026-01-02", "")).toEqual(["2026-02-01", "2026-01-15"]);
+    expect(await received("", "2026-01-14")).toEqual(["2026-01-01"]);
+    expect(await received("2026-01-15", "2026-01-15")).toEqual(["2026-01-15"]);
+    expect(await received("not a date", "2026-02-30")).toHaveLength(3); // ignored
+    expect((await listGrants({ dateFrom: "2026-01-10", statusId: awarded.id })).totals.count).toBe(1);
     expect(await listGrantsForCharity(other.id)).toHaveLength(1);
   });
 

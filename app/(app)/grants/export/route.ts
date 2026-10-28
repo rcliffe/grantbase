@@ -1,6 +1,6 @@
 import { toCsv } from "@/lib/csv";
 import { GRANT_CSV_COLUMNS } from "@/lib/grant-csv";
-import { GRANT_PERMISSIONS, toDateInput } from "@/lib/grants";
+import { GRANT_PERMISSIONS, grantOrder, toDateInput } from "@/lib/grants";
 import { requireRole } from "@/server/authz/guards";
 import { exportGrants, type GrantItem } from "@/server/grants/service";
 
@@ -57,7 +57,7 @@ function cell(g: GrantItem, header: (typeof GRANT_CSV_COLUMNS)[number]["header"]
   }
 }
 
-/** GET /grants/export?q=…&status=…&category=… downloads the grants matching the list filters as CSV. */
+/** GET /grants/export?q=…&status=…&category=…&from=…&to=…&sort=… downloads the grants matching the list filters as CSV. */
 export async function GET(request: Request): Promise<Response> {
   await requireRole(GRANT_PERMISSIONS.export);
   const params = new URL(request.url).searchParams;
@@ -65,6 +65,9 @@ export async function GET(request: Request): Promise<Response> {
     query: params.get("q") ?? "",
     statusId: params.get("status")?.slice(0, 36) ?? "",
     categoryId: params.get("category")?.slice(0, 36) ?? "",
+    dateFrom: params.get("from") ?? "",
+    dateTo: params.get("to") ?? "",
+    order: grantOrder(params.get("sort")),
   });
 
   const csv = toCsv([GRANT_CSV_COLUMNS.map((c) => c.header), ...grants.map((g) => GRANT_CSV_COLUMNS.map((c) => cell(g, c.header)))]);

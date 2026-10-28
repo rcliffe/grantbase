@@ -105,6 +105,10 @@ describe("grant CSV export", () => {
     const filtered = parseCsv(await (await exportCsv(`status=${awarded.id}`)).text());
     expect(filtered).toHaveLength(2);
     expect(parseCsv(await (await exportCsv("q=hilltop")).text())[1][1]).toBe("Hilltop Trust");
+    expect(parseCsv(await (await exportCsv("from=2026-05-01&to=2026-05-31")).text()).map((r) => r[1])).toEqual(["Charity", "Hilltop Trust"]);
+    // In the list's order: newest first unless sort=oldest.
+    const dates = async (params: string) => parseCsv(await (await exportCsv(params)).text()).slice(1).map((r) => r[7]);
+    expect(await dates("sort=oldest")).toEqual((await dates("")).reverse());
   });
 });
 

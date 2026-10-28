@@ -5,7 +5,7 @@ import { buttonClasses, LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState, PageHeader } from "@/components/ui/misc";
 import { Pagination } from "@/components/ui/pagination";
-import { formatMoney, GRANT_PERMISSIONS } from "@/lib/grants";
+import { formatMoney, GRANT_PERMISSIONS, grantOrder, isIsoDate, type GrantOrder } from "@/lib/grants";
 import { DEFAULT_PAGE_SIZE, pageSize, type PageSize } from "@/lib/pagination";
 import { hasRole } from "@/lib/roles";
 import { requireRole } from "@/server/authz/guards";
@@ -20,6 +20,10 @@ function first(value: string | string[] | undefined): string {
 }
 
 const selectClasses = "block h-10 w-full rounded-md border border-line-strong bg-surface px-3 text-sm sm:w-auto";
+const dateClasses = "block h-10 min-w-0 flex-1 rounded-md border border-line-strong bg-surface px-3 text-sm text-foreground sm:flex-none";
+
+/** A YYYY-MM-DD date from the URL, or "" when it isn't one. */
+const isoDate = (value: string) => (isIsoDate(value) ? value : "");
 
 export default async function GrantsPage({ searchParams }: PageProps<"/grants">) {
   const user = await requireRole(GRANT_PERMISSIONS.view);
@@ -28,20 +32,45 @@ export default async function GrantsPage({ searchParams }: PageProps<"/grants">)
     query: first(params.q).trim(),
     statusId: first(params.status).slice(0, 36),
     categoryId: first(params.category).slice(0, 36),
+    dateFrom: isoDate(first(params.from)),
+    dateTo: isoDate(first(params.to)),
   };
+  // A range entered backwards still means the days between the two dates.
+  if (filters.dateFrom && filters.dateTo && filters.dateFrom > filters.dateTo) {
+    [filters.dateFrom, filters.dateTo] = [filters.dateTo, filters.dateFrom];
+  }
+  const order = grantOrder(first(params.sort));
   const requestedPage = Number.parseInt(first(params.page), 10);
   const [{ items, totals, page, pageCount, pageSize: size }, statuses, categories] = await Promise.all([
-    listGrants({ ...filters, page: Number.isFinite(requestedPage) ? requestedPage : 1, pageSize: pageSize(first(params.size)) }),
+    listGrants({ ...filters, order, page: Number.isFinite(requestedPage) ? requestedPage : 1, pageSize: pageSize(first(params.size)) }),
     listLookups("status"),
     listLookups("category"),
   ]);
-  const filtered = Boolean(filters.query || filters.statusId || filters.categoryId);
+  const filtered = Boolean(filters.query || filters.statusId || filters.categoryId || filters.dateFrom || filters.dateTo);
   const canEdit = hasRole(user.role, GRANT_PERMISSIONS.edit);
   const newButton = canEdit ? <LinkButton href="/grants/new">Add grant</LinkButton> : null;
-  const exportParams = new URLSearchParams();
-  if (filters.query) exportParams.set("q", filters.query);
-  if (filters.statusId) exportParams.set("status", filters.statusId);
-  if (filters.categoryId) exportParams.set("category", filters.categoryId);
+  /** The filters and order as URL parameters, as the filter form submits them. */
+  const filterParams = (o: GrantOrder = order) => {
+    const search = new URLSearchParams();
+    if (filters.query) search.set("q", filters.query);
+    if (filters.statusId) search.set("status", filters.statusId);
+    if (filters.categoryId) search.set("category", filters.categoryId);
+    if (filters.dateFrom) search.set("from", filters.dateFrom);
+    if (filters.dateTo) search.set("to", filters.dateTo);
+    if (o !== "newest") search.set("sort", o);
+    return search;
+  };
+  const sortHref = (o: GrantOrder) => {
+    const search = filterParams(o);
+    if (size !== DEFAULT_PAGE_SIZE) search.set("size", String(size));
+    return `/grants?${search}`;
+  };
+  // Clearing the filters keeps the order and page size.
+  const kept = new URLSearchParams();
+  if (order !== "newest") kept.set("sort", order);
+  if (size !== DEFAULT_PAGE_SIZE) kept.set("size", String(size));
+  const clearHref = kept.size ? `/grants?${kept}` : "/grants";
+  const exportParams = filterParams();
   const exportHref = exportParams.size ? `/grants/export?${exportParams}` : "/grants/export";
   const headerActions = (
     <>
@@ -66,10 +95,7 @@ export default async function GrantsPage({ searchParams }: PageProps<"/grants">)
   );
 
   const pageHref = (p: number, s: PageSize = size) => {
-    const search = new URLSearchParams();
-    if (filters.query) search.set("q", filters.query);
-    if (filters.statusId) search.set("status", filters.statusId);
-    if (filters.categoryId) search.set("category", filters.categoryId);
+    const search = filterParams();
     if (s !== DEFAULT_PAGE_SIZE) search.set("size", String(s));
     if (p > 1) search.set("page", String(p));
     const qs = search.toString();
@@ -123,12 +149,24 @@ export default async function GrantsPage({ searchParams }: PageProps<"/grants">)
             </option>
           ))}
         </select>
+        {/* One group, so the two dates wrap together. */}
+        <div role="group" aria-label="Received date" className="flex w-full items-center gap-2 text-sm text-muted sm:w-auto">
+          <label htmlFor="grant-from" className="whitespace-nowrap">
+            Received<span className="sr-only"> from</span>
+          </label>
+          <input id="grant-from" name="from" type="date" defaultValue={filters.dateFrom} className={dateClasses} />
+          <label htmlFor="grant-to">
+            <span className="sr-only">Received </span>to
+          </label>
+          <input id="grant-to" name="to" type="date" defaultValue={filters.dateTo} className={dateClasses} />
+        </div>
+        {order !== "newest" && <input type="hidden" name="sort" value={order} />}
         {size !== DEFAULT_PAGE_SIZE && <input type="hidden" name="size" value={size} />}
         <button type="submit" className={buttonClasses("secondary")}>
           Filter
         </button>
         {filtered && (
-          <Link href={size !== DEFAULT_PAGE_SIZE ? `/grants?size=${size}` : "/grants"} className={buttonClasses("ghost")}>
+          <Link href={clearHref} className={buttonClasses("ghost")}>
             Clear
           </Link>
         )}
@@ -162,7 +200,11 @@ export default async function GrantsPage({ searchParams }: PageProps<"/grants">)
             ))}
           </dl>
           <Card className="overflow-hidden">
-            <GrantTable grants={items} caption={`Grants${filtered ? " matching the filters" : ""}, page ${page} of ${pageCount}`} />
+            <GrantTable
+              grants={items}
+              caption={`Grants${filtered ? " matching the filters" : ""}, ${order} first, page ${page} of ${pageCount}`}
+              sort={{ order, href: sortHref }}
+            />
           </Card>
           <Pagination
             summary={pageCount > 1 ? `Page ${page} of ${pageCount}` : null}

@@ -1,17 +1,44 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/misc";
-import { formatDate, formatMoney, purposeSummary } from "@/lib/grants";
+import { formatDate, formatMoney, purposeSummary, type GrantOrder } from "@/lib/grants";
 import type { GrantItem } from "@/server/grants/service";
 
-/** Grants as a table. `showCharity` is off on a charity's own page. */
-export function GrantTable({ grants, caption, showCharity = true }: { grants: GrantItem[]; caption: string; showCharity?: boolean }) {
+/**
+ * Grants as a table. `showCharity` is off on a charity's own page. With `sort`, the
+ * Submitted heading switches between newest and oldest first.
+ */
+export function GrantTable({
+  grants,
+  caption,
+  showCharity = true,
+  sort,
+}: {
+  grants: GrantItem[];
+  caption: string;
+  showCharity?: boolean;
+  sort?: { order: GrantOrder; href: (order: GrantOrder) => string };
+}) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-left text-sm">
         <caption className="sr-only">{caption}</caption>
         <thead className="border-b border-line bg-surface-muted text-xs text-muted uppercase">
           <tr>
-            <th scope="col" className="px-5 py-3 font-semibold">Submitted</th>
+            <th scope="col" className="px-5 py-3 font-semibold" aria-sort={sort ? (sort.order === "oldest" ? "ascending" : "descending") : undefined}>
+              {sort ? (
+                <Link
+                  href={sort.href(sort.order === "oldest" ? "newest" : "oldest")}
+                  className="inline-flex items-center gap-1 rounded uppercase hover:text-foreground"
+                  title={sort.order === "oldest" ? "Oldest first: show newest first" : "Newest first: show oldest first"}
+                >
+                  Submitted
+                  <span aria-hidden="true">{sort.order === "oldest" ? "↑" : "↓"}</span>
+                  <span className="sr-only">, {sort.order} first. Show {sort.order === "oldest" ? "newest" : "oldest"} first</span>
+                </Link>
+              ) : (
+                "Submitted"
+              )}
+            </th>
             {showCharity && <th scope="col" className="px-5 py-3 font-semibold">Charity</th>}
             <th scope="col" className="px-5 py-3 font-semibold">Category</th>
             <th scope="col" className="px-5 py-3 font-semibold">Status</th>

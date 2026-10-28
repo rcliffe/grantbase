@@ -17,6 +17,10 @@ export const GRANT_PERMISSIONS = {
 
 export const GRANT_PURPOSE_MAX_LENGTH = 4000;
 
+/** Grant list order by date submitted; kept in the URL as `sort` (newest is the default). */
+export type GrantOrder = "newest" | "oldest";
+export const grantOrder = (value: string | null | undefined): GrantOrder => (value === "oldest" ? "oldest" : "newest");
+
 /** First line of the purpose, shortened, for lists and labels. */
 export function purposeSummary(purpose: string, max = 80): string {
   const line = purpose.split(/\r?\n/, 1)[0].trim();
