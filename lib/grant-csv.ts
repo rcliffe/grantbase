@@ -43,7 +43,7 @@ export const GRANT_CSV_COLUMNS = [
   { header: "Income", column: "income", help: "In pounds." },
   { header: "Expenditure", column: "expenditure", help: "In pounds." },
   { header: "Government funding", column: "governmentFunding", help: "From government or local authorities, in pounds." },
-  { header: "Other funders", column: "otherFunders", help: "Up to 1,000 characters." },
+  { header: "Other funders", column: "otherFunders", help: "Up to 1,500 characters." },
   { header: "Pence in the pound", column: "penceInPound", help: "Pence of each pound spent on charitable activities, 0 to 100." },
   { header: "Employees", column: "employees", help: "Whole numbers." },
   { header: "Volunteers", column: "volunteers", help: null },

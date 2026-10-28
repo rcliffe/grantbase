@@ -131,7 +131,7 @@ export const grantSchema = z
     otherFunders: z
       .string()
       .trim()
-      .max(1000, "Other funders must be at most 1,000 characters.")
+      .max(1500, "Other funders must be at most 1,500 characters.")
       .transform((v) => (v === "" ? null : v)),
     // Written as "85", "85p" or "85%".
     penceInPound: z

@@ -132,7 +132,7 @@ export function GrantForm({
           name="otherFunders"
           label="Other funders"
           rows={2}
-          maxLength={1000}
+          maxLength={1500}
           defaultValue={value("otherFunders")}
           error={errors.otherFunders}
         />

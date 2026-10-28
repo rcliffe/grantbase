@@ -146,6 +146,8 @@ describe("reading submissions", () => {
     expect(error({ trustees: "2.5" })).toMatch(/whole number/);
     expect(error({ employees: "-1" })).toMatch(/whole number/);
     expect(error({ accountsDate: "31/03/2026" })).toBe("Enter a valid date of latest audited accounts.");
+    expect(error({ otherFunders: "x".repeat(1500) })).toBeUndefined();
+    expect(error({ otherFunders: "x".repeat(1501) })).toBe("Other funders must be at most 1,500 characters.");
   });
 });
 

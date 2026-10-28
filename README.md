@@ -120,7 +120,7 @@ Data rules, applied on the server:
 
 ## Grants
 
-A grant records an application a charity has submitted: its **charity**, **category** and **status**, an optional **purpose** (up to 4,000 characters; lists show its first line), the **date submitted** and **amount requested**, and, once known, the **decision date**, **amount agreed** and **payment date**. Optionally it holds the charity's figures as stated in the application: date of latest audited accounts, income, expenditure, government funding, other funders, pence in the pound (0–100), and numbers of employees, volunteers and trustees. It also records who created and last updated it, and when.
+A grant records an application a charity has submitted: its **charity**, **category** and **status**, an optional **purpose** (up to 4,000 characters; lists show its first line), the **date submitted** and **amount requested**, and, once known, the **decision date**, **amount agreed** and **payment date**. Optionally it holds the charity's figures as stated in the application: date of latest audited accounts, income, expenditure, government funding, other funders (up to 1,500 characters), pence in the pound (0–100), and numbers of employees, volunteers and trustees. It also records who created and last updated it, and when.
 
 | Action | Minimum role |
 | --- | --- |

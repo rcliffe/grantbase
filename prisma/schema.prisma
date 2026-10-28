@@ -208,7 +208,7 @@ model Grant {
   income              Decimal?      @db.Decimal(12, 2)
   expenditure         Decimal?      @db.Decimal(12, 2)
   governmentFunding   Decimal?      @db.Decimal(12, 2)
-  otherFunders        String?       @db.VarChar(1000)
+  otherFunders        String?       @db.VarChar(1500)
   /// Pence of each pound spent on charitable activities, 0–100.
   penceInPound        Int?          @db.TinyInt
   employees           Int?
