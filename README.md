@@ -180,10 +180,10 @@ These work like the [charity CSV export and import](#csv-export-and-import): sam
 **Import submissions** on the Grants page (`/grants/import/submissions`, Editor) reads the submissions report of the online application form (one row per application, with the charity's details and the grant request in the same row). It uses the same size limits, **Check file** and all-or-nothing saving as the CSV imports.
 
 - Columns are recognised by their question text, ignoring case, punctuation and anything in brackets (`Grant Request Amount (£)` = `grant request amount`). The page lists every column and where it goes. Required: `Name of Charity/Organisation`, the category question, `Grant Request Amount (£)` and `Added Time` (the date submitted). Columns the app doesn't use (IP address, task owner …) are ignored, and any unknown ones are listed when the file is checked.
-- **Charity:** matched by registration number, or else by name (ignoring case and accents, and never a charity with a different registration number); otherwise it is added. An existing charity keeps its details: only **blank** fields are filled in from the file. Several rows for the same new charity add it once.
+- **Charity:** matched by registration number, or else by name (ignoring case and accents, and never a charity with a different registration number); otherwise it is added. An existing charity keeps its details: only **blank** fields are filled in from the file. The exception is the **contact** (name, position and email): a submission newer than the charity's latest application replaces all three, so the contact stays current. An older submission only supplies a contact when the charity has none. Several rows for the same new charity add it once.
 - **Address:** the single address answer is split on commas and line breaks. A UK postcode and a country at the end are recognised, the last remaining part is the town, and the parts in between become address line 2.
 - **Grant:** the category and `Status` are matched by name; a blank status means the first active status at the *Awaiting decision* stage. `Date Discussed` and `Recommended/Approved Amount` become the decision date and amount agreed.
-- **Random ID** is stored as the grant's submission reference. Submissions already imported are skipped, so the same report can be imported again as it grows. To change imported grants, edit them or use the grant CSV import.
+- **Random ID** is stored as the grant's submission reference. Submissions already imported are skipped, so the same report can be imported again as it grows. A submission from a charity that already has an application on the same day (recorded, or earlier in the file) is taken to be the same application sent again and skipped too. To change imported grants, edit them or use the grant CSV import.
 - Answers such as `N/A`, `None`, `-` or `Exempt` count as blank in optional fields. Dates can be `27-Oct-2026 14:32:10`, `27 October 2026`, `27/10/2026` or `2026-10-27`; the time of day is dropped.
 
 ## Grant categories and statuses
@@ -326,7 +326,7 @@ They cover:
 - grant categories and statuses: administrator-only changes, unique names, ordering, deactivation and the standard status set;
 - grant process: queues, approving, rejecting and paying, form rules, missing stages, double and simultaneous decisions, UK dates;
 - grant CSV export filters and import: matching charities by ID, registration number and name, categories and statuses by name, UK dates, blank cells, and export → import round trips;
-- submissions import: the report's columns, address splitting, form date formats, placeholder answers, charity matching and blank-only updates, skipping submissions imported before, and all-or-nothing errors;
+- submissions import: the report's columns, address splitting, form date formats, placeholder answers, charity matching, blank-only updates and contact updates from the newest submission, skipping submissions imported before and same-day applications, and all-or-nothing errors;
 - CSV reading/writing and formula escaping, export permissions and filtering, and import: creating, matching by ID and registration number, partial columns, all-or-nothing errors, and export → import round trips.
 
 ## Production configuration

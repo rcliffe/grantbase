@@ -42,11 +42,13 @@ export default async function ImportSubmissionsPage() {
               <li>Each row is one application. It adds a grant, and the charity too when it isn&apos;t recorded yet.</li>
               <li>
                 Charities are matched by registration number, or else by name. An existing charity keeps its details: only
-                blank ones are filled in from the file.
+                blank ones are filled in from the file. The contact (name, position and email) is the exception: it&apos;s
+                updated from the newest submission.
               </li>
               <li>
                 Submissions already imported (same Random ID) are skipped, so you can import the same report again as new
-                applications arrive.
+                applications arrive. A submission from a charity that already has an application on the same day is
+                skipped too.
               </li>
               <li>
                 Categories and statuses are matched by name, ignoring case. A blank status means the first active status at

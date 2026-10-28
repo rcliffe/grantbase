@@ -210,6 +210,7 @@ describe("submissions import", () => {
     await signedInAs("EDITOR");
     const decided = submission({
       "Random ID": "2",
+      "Added Time": "28-Oct-2026 10:00:00",
       Status: "approved",
       "Date Discussed": "05/11/2026",
       "Recommended/Approved Amount (GBP)": "2000",
@@ -221,11 +222,31 @@ describe("submissions import", () => {
     });
 
     // The report grows: only the new submission is added.
-    const again = await upload(report(submission({ "Random ID": "1" }), decided, submission({ "Random ID": "3" })));
+    const again = await upload(report(submission({ "Random ID": "1" }), decided, submission({ "Random ID": "3", "Added Time": "29-Oct-2026 08:15:00" })));
     expect(again.summary).toMatchObject({ saved: true, created: 1 });
     expect(again.summary?.notes).toContain("2 submissions were imported before and will be skipped");
     expect(await db().grant.count()).toBe(3);
     expect(await db().charity.count()).toBe(1);
+  });
+
+  it("skips an application from a charity that already has one on the same day", async () => {
+    const riverside = await db().charity.create({ data: { name: "Riverside Food Bank", registrationNumber: "1234567" } });
+    await db().grant.create({
+      data: { charityId: riverside.id, categoryId: poverty.id, statusId: submitted.id, dateSubmitted: new Date("2026-10-27T00:00:00Z"), amountRequested: 100 },
+    });
+    await signedInAs("EDITOR");
+    const result = await upload(
+      report(
+        submission({ "Random ID": "1" }), // same day as the recorded grant
+        submission({ "Random ID": "2", "Added Time": "28-Oct-2026 09:00:00" }),
+        submission({ "Random ID": "3", "Added Time": "28-Oct-2026 17:45:00" }), // same day as row 3
+        submission({ "Name of Charity/Organisation": "Valley Arts", "Charity Registration Number ( England & Wales)": "", "Random ID": "4" }),
+      ),
+    );
+    expect(result.summary).toMatchObject({ saved: true, created: 2, rowErrorCount: 0 });
+    expect(result.summary?.notes).toContain("2 submissions are from a charity with an application on the same day and will be skipped");
+    const grants = await db().grant.findMany({ select: { submissionReference: true }, orderBy: { submissionReference: "asc" } });
+    expect(grants.map((g) => g.submissionReference)).toEqual([null, "2", "4"]);
   });
 
   it("only fills in an existing charity's blank details", async () => {
@@ -248,6 +269,40 @@ describe("submissions import", () => {
     expect((await db().grant.findFirstOrThrow()).charityId).toBe(existing.id);
   });
 
+  it("updates the contact from the newest submission", async () => {
+    const riverside = await db().charity.create({
+      data: { name: "Riverside Food Bank", registrationNumber: "1234567", contactName: "Sam Patel", contactPosition: "Treasurer", contactEmail: "sam@riverside.example" },
+    });
+    await db().grant.create({
+      data: { charityId: riverside.id, categoryId: poverty.id, statusId: submitted.id, dateSubmitted: new Date("2026-10-20T00:00:00Z"), amountRequested: 100 },
+    });
+    await signedInAs("EDITOR");
+    const contact = (name: string, position: string, email: string, added: string, id: string) =>
+      submission({ Name: name, "Position In Organisation": position, "Email (This will used for communication)": email, "Added Time": added, "Random ID": id });
+    const result = await upload(
+      report(
+        // The newest wins whatever the order in the file; its blank position isn't filled from an older contact.
+        contact("Jo Bloggs", "", "jo@riverside.example", "29-Oct-2026 10:00:00", "1"),
+        contact("Alex Jones", "Chair", "alex@riverside.example", "27-Oct-2026 10:00:00", "2"),
+        // Older than the application already recorded.
+        contact("Old Contact", "Secretary", "old@riverside.example", "15-Oct-2026 10:00:00", "3"),
+      ),
+    );
+    expect(result.summary).toMatchObject({ saved: true, created: 3 });
+    expect(result.summary?.notes).toContain("1 existing charity matched, 1 with blank details filled in, 1 with contact details updated");
+    expect(await db().charity.findUniqueOrThrow({ where: { id: riverside.id } })).toMatchObject({
+      name: "Riverside Food Bank",
+      contactName: "Jo Bloggs",
+      contactPosition: null,
+      contactEmail: "jo@riverside.example",
+      addressLine1: "Unit 4", // still only filled in because it was blank
+    });
+
+    // A later report with an older submission leaves the contact alone.
+    await upload(report(contact("Late Entry", "Chair", "late@riverside.example", "21-Oct-2026 10:00:00", "4")));
+    expect((await db().charity.findUniqueOrThrow({ where: { id: riverside.id } })).contactName).toBe("Jo Bloggs");
+  });
+
   it("matches by name when there's no registration number, and adds a charity only once", async () => {
     const hilltop = await db().charity.create({ data: { name: "Hilltop Trust" } });
     await signedInAs("EDITOR");
@@ -257,7 +312,12 @@ describe("submissions import", () => {
         submission({ ...noReg, "Name of Charity/Organisation": "HILLTOP TRUST", "Random ID": "1" }),
         submission({ "Name of Charity/Organisation": "Valley Arts", "Charity Registration Number ( England & Wales)": "", "Random ID": "2" }),
         // Same new charity again, now giving its registration number: filled in, not added twice.
-        submission({ "Name of Charity/Organisation": "Valley Arts", "Charity Registration Number ( England & Wales)": "7654321", "Random ID": "3" }),
+        submission({
+          "Name of Charity/Organisation": "Valley Arts",
+          "Charity Registration Number ( England & Wales)": "7654321",
+          "Random ID": "3",
+          "Added Time": "28-Oct-2026 09:00:00",
+        }),
       ),
     );
     expect(result.summary).toMatchObject({ saved: true, created: 3, notes: ["1 new charity", "1 existing charity matched, 1 with blank details filled in"] });
