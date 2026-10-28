@@ -1,6 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { createCharityAction, deleteCharityAction, updateCharityAction } from "@/app/(app)/charities/actions";
-import { CHARITY_PAGE_SIZE, charitySchema, normaliseWebsite } from "@/lib/charities";
+import { charitySchema, normaliseWebsite } from "@/lib/charities";
+import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { listCharities } from "@/server/charities/service";
 import { db } from "@/server/db/client";
 import { expectRedirect, formData, makeUser, resetDatabase, signIn } from "./support/fixtures";
@@ -223,7 +224,7 @@ describe("charity data rules", () => {
 
   it("searches case-insensitively and paginates", async () => {
     await db().charity.createMany({
-      data: Array.from({ length: CHARITY_PAGE_SIZE + 3 }, (_, i) => ({
+      data: Array.from({ length: DEFAULT_PAGE_SIZE + 3 }, (_, i) => ({
         name: `Charity ${String(i).padStart(2, "0")}`,
         town: i === 7 ? "York" : "Leeds",
         registrationNumber: `${1000000 + i}`,
@@ -231,10 +232,16 @@ describe("charity data rules", () => {
     });
 
     const page1 = await listCharities();
-    expect(page1).toMatchObject({ total: CHARITY_PAGE_SIZE + 3, page: 1, pageCount: 2 });
-    expect(page1.items).toHaveLength(CHARITY_PAGE_SIZE);
+    expect(page1).toMatchObject({ total: DEFAULT_PAGE_SIZE + 3, page: 1, pageCount: 2, pageSize: DEFAULT_PAGE_SIZE });
+    expect(page1.items).toHaveLength(DEFAULT_PAGE_SIZE);
     expect((await listCharities({ page: 2 })).items).toHaveLength(3);
     expect((await listCharities({ page: 99 })).page).toBe(2); // clamped
+
+    // 10, 25 or 50 per page; anything else means the default.
+    expect(await listCharities({ pageSize: 10, page: 3 })).toMatchObject({ page: 3, pageCount: 3, pageSize: 10 });
+    expect((await listCharities({ pageSize: 10, page: 3 })).items).toHaveLength(8);
+    expect((await listCharities({ pageSize: 50 })).items).toHaveLength(DEFAULT_PAGE_SIZE + 3);
+    expect((await listCharities({ pageSize: 1000 })).pageSize).toBe(DEFAULT_PAGE_SIZE);
 
     expect((await listCharities({ query: "york" })).items.map((c) => c.name)).toEqual(["Charity 07"]);
     expect((await listCharities({ query: "1000012" })).items.map((c) => c.name)).toEqual(["Charity 12"]);

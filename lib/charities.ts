@@ -14,8 +14,6 @@ export const CHARITY_PERMISSIONS = {
   delete: "ADMINISTRATOR",
 } as const satisfies Record<string, Role>;
 
-export const CHARITY_PAGE_SIZE = 25;
-
 /** Optional free text: trimmed, length-limited, empty becomes null. */
 function optionalText(max: number, label: string) {
   return z

@@ -4,7 +4,9 @@ import { Alert } from "@/components/ui/alert";
 import { buttonClasses, LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState, PageHeader } from "@/components/ui/misc";
+import { Pagination } from "@/components/ui/pagination";
 import { formatMoney, GRANT_PERMISSIONS } from "@/lib/grants";
+import { DEFAULT_PAGE_SIZE, pageSize, type PageSize } from "@/lib/pagination";
 import { hasRole } from "@/lib/roles";
 import { requireRole } from "@/server/authz/guards";
 import { listLookups } from "@/server/grant-lookups/service";
@@ -28,8 +30,8 @@ export default async function GrantsPage({ searchParams }: PageProps<"/grants">)
     categoryId: first(params.category).slice(0, 36),
   };
   const requestedPage = Number.parseInt(first(params.page), 10);
-  const [{ items, totals, page, pageCount }, statuses, categories] = await Promise.all([
-    listGrants({ ...filters, page: Number.isFinite(requestedPage) ? requestedPage : 1 }),
+  const [{ items, totals, page, pageCount, pageSize: size }, statuses, categories] = await Promise.all([
+    listGrants({ ...filters, page: Number.isFinite(requestedPage) ? requestedPage : 1, pageSize: pageSize(first(params.size)) }),
     listLookups("status"),
     listLookups("category"),
   ]);
@@ -63,11 +65,12 @@ export default async function GrantsPage({ searchParams }: PageProps<"/grants">)
     </>
   );
 
-  const pageHref = (p: number) => {
+  const pageHref = (p: number, s: PageSize = size) => {
     const search = new URLSearchParams();
     if (filters.query) search.set("q", filters.query);
     if (filters.statusId) search.set("status", filters.statusId);
     if (filters.categoryId) search.set("category", filters.categoryId);
+    if (s !== DEFAULT_PAGE_SIZE) search.set("size", String(s));
     if (p > 1) search.set("page", String(p));
     const qs = search.toString();
     return qs ? `/grants?${qs}` : "/grants";
@@ -120,11 +123,12 @@ export default async function GrantsPage({ searchParams }: PageProps<"/grants">)
             </option>
           ))}
         </select>
+        {size !== DEFAULT_PAGE_SIZE && <input type="hidden" name="size" value={size} />}
         <button type="submit" className={buttonClasses("secondary")}>
           Filter
         </button>
         {filtered && (
-          <Link href="/grants" className={buttonClasses("ghost")}>
+          <Link href={size !== DEFAULT_PAGE_SIZE ? `/grants?size=${size}` : "/grants"} className={buttonClasses("ghost")}>
             Clear
           </Link>
         )}
@@ -160,25 +164,14 @@ export default async function GrantsPage({ searchParams }: PageProps<"/grants">)
           <Card className="overflow-hidden">
             <GrantTable grants={items} caption={`Grants${filtered ? " matching the filters" : ""}, page ${page} of ${pageCount}`} />
           </Card>
-          {pageCount > 1 && (
-            <nav aria-label="Pagination" className="mt-4 flex items-center justify-between text-sm text-muted">
-              <p>
-                Page {page} of {pageCount}
-              </p>
-              <div className="flex gap-2">
-                {page > 1 && (
-                  <LinkButton href={pageHref(page - 1)} variant="secondary" size="sm">
-                    Previous
-                  </LinkButton>
-                )}
-                {page < pageCount && (
-                  <LinkButton href={pageHref(page + 1)} variant="secondary" size="sm">
-                    Next
-                  </LinkButton>
-                )}
-              </div>
-            </nav>
-          )}
+          <Pagination
+            summary={pageCount > 1 ? `Page ${page} of ${pageCount}` : null}
+            total={totals.count}
+            page={page}
+            pageCount={pageCount}
+            pageSize={size}
+            href={pageHref}
+          />
         </>
       )}
     </>

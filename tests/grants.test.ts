@@ -225,6 +225,15 @@ describe("grant data rules", () => {
     expect((await listGrants({ query: "%" })).totals.count).toBe(0); // not a wildcard
     expect(await listGrantsForCharity(other.id)).toHaveLength(1);
   });
+
+  it("pages grants 10, 25 or 50 at a time", async () => {
+    for (let day = 1; day <= 12; day++) await createGrant({ dateSubmitted: `2026-03-${String(day).padStart(2, "0")}` });
+    expect(await listGrants()).toMatchObject({ page: 1, pageCount: 1, pageSize: 25 });
+    const last = await listGrants({ pageSize: 10, page: 2 });
+    expect(last).toMatchObject({ page: 2, pageCount: 2, pageSize: 10, totals: { count: 12 } });
+    expect(last.items.map((g) => g.dateSubmitted.getUTCDate())).toEqual([2, 1]);
+    expect((await listGrants({ pageSize: 7 })).pageSize).toBe(25);
+  });
 });
 
 describe("records that grants depend on", () => {

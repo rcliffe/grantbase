@@ -1,7 +1,8 @@
 import "server-only";
 import { Prisma } from "@/generated/prisma/client";
 import { isLookupTone, type LookupTone } from "@/lib/grant-lookups";
-import { GRANT_PAGE_SIZE, grantData, type GrantInput } from "@/lib/grants";
+import { grantData, type GrantInput } from "@/lib/grants";
+import { clampPage, pageSize, type PageSize } from "@/lib/pagination";
 import { db } from "@/server/db/client";
 
 /**
@@ -105,23 +106,24 @@ function filterWhere(filters: GrantFilters): Prisma.GrantWhereInput {
 
 export type GrantTotals = { count: number; requested: string; agreed: string };
 
-export async function listGrants(filters: GrantFilters & { page?: number } = {}): Promise<{
+export async function listGrants(filters: GrantFilters & { page?: number; pageSize?: number } = {}): Promise<{
   items: GrantItem[];
   totals: GrantTotals;
   page: number;
   pageCount: number;
+  pageSize: PageSize;
 }> {
   const where = filterWhere(filters);
   const agg = await db().grant.aggregate({ where, _count: { _all: true }, _sum: { amountRequested: true, amountAgreed: true } });
   const count = agg._count._all;
-  const pageCount = Math.max(1, Math.ceil(count / GRANT_PAGE_SIZE));
-  const page = Math.min(Math.max(1, Math.floor(filters.page ?? 1)), pageCount);
+  const size = pageSize(filters.pageSize);
+  const { page, pageCount, skip } = clampPage(filters.page, count, size);
   const rows = await db().grant.findMany({
     where,
     select: grantSelect,
     orderBy,
-    skip: (page - 1) * GRANT_PAGE_SIZE,
-    take: GRANT_PAGE_SIZE,
+    skip,
+    take: size,
   });
   return {
     items: rows.map(toItem),
@@ -132,6 +134,7 @@ export async function listGrants(filters: GrantFilters & { page?: number } = {})
     },
     page,
     pageCount,
+    pageSize: size,
   };
 }
 

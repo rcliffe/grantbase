@@ -105,7 +105,7 @@ Data rules, applied on the server:
 - **Registration number:** optional, because exempt and excepted charities have none. It is stored upper-case without spaces, so `sc 012 345` is the same as `SC012345`, and it must be unique when present.
 - **Website:** must be an `http(s)` address, and `https://` is added when the scheme is missing. Other schemes (`javascript:`, `data:` …) are rejected, so stored links are safe to render.
 - **Email and postcode:** the contact email follows the app's email normalisation; postcodes are stored upper-case.
-- **Search:** case-insensitive across name, registration number, town and postcode, with 25 results per page. Input is matched literally, so `%` and `_` are not wildcards.
+- **Search:** case-insensitive across name, registration number, town and postcode, with 10, 25 (the default) or 50 results per page. Input is matched literally, so `%` and `_` are not wildcards.
 - **Year established:** four digits, from 1000 to the current year. **Description:** up to 1,000 characters.
 
 ### CSV export and import
@@ -130,7 +130,7 @@ A grant records an application a charity has submitted: its **charity**, **categ
 
 These rules live in `GRANT_PERMISSIONS` (`lib/grants.ts`) and are enforced in every page and Server Action.
 
-- **Grants** in the sidebar lists all grants, newest first, with search (charity name, registration number or purpose), status and category filters, and totals for the count, amount requested and amount agreed. Totals cover all matching grants, not just the current page.
+- **Grants** in the sidebar lists all grants, newest first, with search (charity name, registration number or purpose), status and category filters, and totals for the count, amount requested and amount agreed. Totals cover all matching grants, not just the current page, which shows 10, 25 (the default) or 50 grants.
 - Each charity's page lists its grants with totals, and has an **Add grant** button that pre-selects the charity.
 - **Amounts** are in pounds to the penny (`DECIMAL(12,2)`). Input such as `2500`, `£2,500.50` or `2 500` is accepted. Amounts are handled as exact decimal strings, never floating-point numbers.
 - **Dates** are calendar dates (`DATE`), with no time of day, so they never shift between time zones.

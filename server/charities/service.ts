@@ -1,6 +1,7 @@
 import "server-only";
 import { Prisma } from "@/generated/prisma/client";
-import { CHARITY_PAGE_SIZE, type CharityInput } from "@/lib/charities";
+import { type CharityInput } from "@/lib/charities";
+import { clampPage, pageSize, type PageSize } from "@/lib/pagination";
 import { db } from "@/server/db/client";
 
 /**
@@ -74,24 +75,25 @@ function searchWhere(rawQuery: string | undefined): Prisma.CharityWhereInput {
     : {};
 }
 
-export async function listCharities(options: { query?: string; page?: number } = {}): Promise<{
+export async function listCharities(options: { query?: string; page?: number; pageSize?: number } = {}): Promise<{
   items: CharityListItem[];
   total: number;
   page: number;
   pageCount: number;
+  pageSize: PageSize;
 }> {
   const where = searchWhere(options.query);
   const total = await db().charity.count({ where });
-  const pageCount = Math.max(1, Math.ceil(total / CHARITY_PAGE_SIZE));
-  const page = Math.min(Math.max(1, Math.floor(options.page ?? 1)), pageCount);
+  const size = pageSize(options.pageSize);
+  const { page, pageCount, skip } = clampPage(options.page, total, size);
   const items = await db().charity.findMany({
     where,
     select: listSelect,
     orderBy: [{ name: "asc" }, { id: "asc" }],
-    skip: (page - 1) * CHARITY_PAGE_SIZE,
-    take: CHARITY_PAGE_SIZE,
+    skip,
+    take: size,
   });
-  return { items, total, page, pageCount };
+  return { items, total, page, pageCount, pageSize: size };
 }
 
 const exportSelect = {

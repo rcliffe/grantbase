@@ -4,7 +4,9 @@ import { Alert } from "@/components/ui/alert";
 import { buttonClasses, LinkButton } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState, PageHeader } from "@/components/ui/misc";
+import { Pagination } from "@/components/ui/pagination";
 import { CHARITY_PERMISSIONS } from "@/lib/charities";
+import { DEFAULT_PAGE_SIZE, pageSize, type PageSize } from "@/lib/pagination";
 import { hasRole } from "@/lib/roles";
 import { requireRole } from "@/server/authz/guards";
 import { listCharities } from "@/server/charities/service";
@@ -20,9 +22,10 @@ export default async function CharitiesPage({ searchParams }: PageProps<"/charit
   const params = await searchParams;
   const query = first(params.q).trim();
   const requestedPage = Number.parseInt(first(params.page), 10);
-  const { items, total, page, pageCount } = await listCharities({
+  const { items, total, page, pageCount, pageSize: size } = await listCharities({
     query,
     page: Number.isFinite(requestedPage) ? requestedPage : 1,
+    pageSize: pageSize(first(params.size)),
   });
   const canEdit = hasRole(user.role, CHARITY_PERMISSIONS.edit);
   const newButton = canEdit ? <LinkButton href="/charities/new">Add charity</LinkButton> : null;
@@ -44,9 +47,10 @@ export default async function CharitiesPage({ searchParams }: PageProps<"/charit
     </>
   );
 
-  const pageHref = (p: number) => {
+  const pageHref = (p: number, s: PageSize = size) => {
     const search = new URLSearchParams();
     if (query) search.set("q", query);
+    if (s !== DEFAULT_PAGE_SIZE) search.set("size", String(s));
     if (p > 1) search.set("page", String(p));
     const qs = search.toString();
     return qs ? `/charities?${qs}` : "/charities";
@@ -75,11 +79,12 @@ export default async function CharitiesPage({ searchParams }: PageProps<"/charit
           placeholder="Search by name, registration number, town or postcode"
           className="block h-10 w-full rounded-md border border-line-strong bg-surface px-3 text-sm placeholder:text-muted/70"
         />
+        {size !== DEFAULT_PAGE_SIZE && <input type="hidden" name="size" value={size} />}
         <button type="submit" className={buttonClasses("secondary")}>
           Search
         </button>
         {query && (
-          <Link href="/charities" className={buttonClasses("ghost")}>
+          <Link href={size !== DEFAULT_PAGE_SIZE ? `/charities?size=${size}` : "/charities"} className={buttonClasses("ghost")}>
             Clear
           </Link>
         )}
@@ -132,26 +137,14 @@ export default async function CharitiesPage({ searchParams }: PageProps<"/charit
               </table>
             </div>
           </Card>
-          <nav aria-label="Pagination" className="mt-4 flex items-center justify-between text-sm text-muted">
-            <p>
-              {total} charit{total === 1 ? "y" : "ies"}
-              {pageCount > 1 && ` · page ${page} of ${pageCount}`}
-            </p>
-            {pageCount > 1 && (
-              <div className="flex gap-2">
-                {page > 1 && (
-                  <LinkButton href={pageHref(page - 1)} variant="secondary" size="sm">
-                    Previous
-                  </LinkButton>
-                )}
-                {page < pageCount && (
-                  <LinkButton href={pageHref(page + 1)} variant="secondary" size="sm">
-                    Next
-                  </LinkButton>
-                )}
-              </div>
-            )}
-          </nav>
+          <Pagination
+            summary={`${total} charit${total === 1 ? "y" : "ies"}${pageCount > 1 ? ` · page ${page} of ${pageCount}` : ""}`}
+            total={total}
+            page={page}
+            pageCount={pageCount}
+            pageSize={size}
+            href={pageHref}
+          />
         </>
       )}
     </>

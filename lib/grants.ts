@@ -15,7 +15,6 @@ export const GRANT_PERMISSIONS = {
   delete: "ADMINISTRATOR",
 } as const satisfies Record<string, Role>;
 
-export const GRANT_PAGE_SIZE = 25;
 export const GRANT_PURPOSE_MAX_LENGTH = 4000;
 
 /** First line of the purpose, shortened, for lists and labels. */
